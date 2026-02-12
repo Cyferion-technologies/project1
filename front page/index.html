@@ -1,0 +1,455 @@
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content="Search any game to read reviews — and write your own." />
+		<title>Project1 | Game Reviews</title>
+		<link rel="stylesheet" href="../css/style.css" />
+	</head>
+
+	<body>
+		<a class="skip-link" href="#content">Skip to content</a>
+
+		<header>
+			<div class="container">
+				<div class="nav" aria-label="Primary navigation">
+					<a class="brand" href="#" aria-label="Project1 home">
+						<div class="logo" aria-hidden="true"></div>
+						<div>
+							<strong>project1</strong>
+							<span>Video game reviews</span>
+						</div>
+					</a>
+
+					<nav class="nav-links" aria-label="Page links">
+						<a href="#how">How it works</a>
+						<a href="#start">Start</a>
+					</nav>
+
+					<a id="navAuthLink" class="btn btn-ghost" href="./registration.html">Write a review</a>
+				</div>
+			</div>
+		</header>
+
+		<main id="content">
+			<div class="container">
+				<section class="hero" aria-label="Landing">
+					<div class="hero-inner">
+						<div class="eyebrow">Search a game • Read reviews • Write yours</div>
+						<h1>A clean way to find game reviews — and add your own.</h1>
+						<p class="sub">
+							Type a game name to pull up community reviews. Sign in to publish your review for that exact game.
+						</p>
+
+						<form id="searchForm" class="search" aria-label="Search games">
+							<input id="query" type="text" name="query" placeholder="Search a game (e.g., Elden Ring)" autocomplete="off" />
+							<button class="btn btn-primary" type="submit">Search</button>
+						</form>
+
+						<div id="result" class="result" aria-live="polite"></div>
+
+						<div id="how" class="mini-row" aria-label="How it works">
+							<div class="mini">
+								<strong>1) Search a game</strong>
+								<span>Find a title instantly and jump into reviews.</span>
+							</div>
+							<div class="mini">
+								<strong>2) Read real opinions</strong>
+								<span>Quick summaries plus detailed write-ups.</span>
+							</div>
+							<div class="mini" id="start">
+								<strong>3) Write your review</strong>
+								<span>Sign in and publish under the game page.</span>
+							</div>
+						</div>
+
+						<div style="display:flex; gap:10px; flex-wrap:wrap;">
+							<a id="ctaPrimary" class="btn btn-primary" href="./registration.html">Get started</a>
+							<a class="btn" href="#how">See how it works</a>
+						</div>
+					</div>
+				</section>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<div class="foot">
+					<div>© <span id="year"></span> project1</div>
+					<div>Demo landing page • Backend not wired yet</div>
+				</div>
+			</div>
+		</footer>
+
+		<script>
+			(function () {
+				const year = document.getElementById('year');
+				year.textContent = String(new Date().getFullYear());
+
+				const navAuthLink = document.getElementById('navAuthLink');
+				const ctaPrimary = document.getElementById('ctaPrimary');
+
+				const form = document.getElementById('searchForm');
+				const queryInput = document.getElementById('query');
+				const result = document.getElementById('result');
+
+				let session = { authenticated: false, user: null };
+				let currentGame = null;
+					let youtubeReqId = 0;
+
+				init();
+
+				async function init() {
+					await refreshSession();
+					updateAuthUI();
+				}
+
+				async function refreshSession() {
+					try {
+							const res = await fetch('/api/me', { cache: 'no-store' });
+							session = await safeJson(res);
+					} catch {
+						session = { authenticated: false, user: null };
+					}
+				}
+
+				function updateAuthUI() {
+					if (session?.authenticated) {
+						navAuthLink.textContent = 'Account';
+						navAuthLink.href = './registration.html';
+						ctaPrimary.textContent = 'Write a review';
+						ctaPrimary.href = '#start';
+						return;
+					}
+
+					navAuthLink.textContent = 'Sign in to review';
+					navAuthLink.href = './registration.html';
+					ctaPrimary.textContent = 'Get started';
+					ctaPrimary.href = './registration.html';
+				}
+
+				form.addEventListener('submit', (e) => {
+					e.preventDefault();
+					const q = queryInput.value.trim();
+					if (!q) {
+						result.style.display = 'block';
+						result.innerHTML = '<strong>Type a game name to search.</strong><p>Example: “Hades”, “Fortnite”, “Minecraft”.</p>';
+						return;
+					}
+					resolveGame(q);
+				});
+
+				async function resolveGame(name) {
+					result.style.display = 'block';
+					result.innerHTML = '<strong>Loading…</strong><p>Fetching game reviews.</p>';
+					currentGame = null;
+
+					try {
+						const res = await fetch('/api/games/resolve', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ name }),
+								cache: 'no-store',
+						});
+							const data = await safeJson(res);
+						if (!res.ok) throw new Error(data?.error || 'request_failed');
+						currentGame = data;
+						await refreshSession();
+						updateAuthUI();
+						renderGameResult(data);
+						loadYoutubeReviews(name);
+					} catch (err) {
+						result.innerHTML =
+							'<strong>Could not load reviews</strong><p>' + escapeHtml(String(err.message || err)) + '</p>';
+					}
+				}
+
+				async function loadYoutubeReviews(gameName) {
+						const reqId = ++youtubeReqId;
+						renderYoutubeSection({ loading: true });
+					try {
+							const res = await fetch('/api/crawler/youtube?q=' + encodeURIComponent(gameName), { cache: 'no-store' });
+							const data = await safeJson(res);
+							if (reqId !== youtubeReqId) return;
+						if (!res.ok) {
+							renderYoutubeSection({ error: data?.error || 'request_failed', videos: [] });
+							return;
+						}
+						renderYoutubeSection(data);
+					} catch (err) {
+							if (reqId !== youtubeReqId) return;
+						renderYoutubeSection({ error: String(err.message || err), videos: [] });
+					}
+				}
+
+				function renderYoutubeSection(data) {
+					const host = document.getElementById('youtubeSection');
+					if (!host) return;
+
+						const header = '<strong>YouTube reviews</strong>';
+						if (data?.loading) {
+							host.innerHTML =
+								header +
+								'<p class="yt-note">Loading videos…</p>' +
+								'<div class="youtube-grid">' +
+									[
+										1,
+										2,
+										3,
+									]
+										.map(() => {
+											return (
+												'<div class="yt-card yt-card--skeleton">' +
+													'<div class="yt-thumb skeleton" aria-hidden="true"></div>' +
+													'<div>' +
+														'<div class="yt-title skeleton" style="height: 16px; border-radius: 10px; background: rgba(255,255,255,0.06);"></div>' +
+														'<div class="yt-meta skeleton" style="height: 12px; width: 70%; border-radius: 10px; background: rgba(255,255,255,0.06);"></div>' +
+													'</div>' +
+												'</div>'
+											);
+										})
+										.join('') +
+								'</div>';
+							return;
+						}
+
+					const videos = Array.isArray(data?.videos) ? data.videos : [];
+					if (data?.error === 'serpapi_not_configured') {
+							host.innerHTML = header + '<p class="yt-note">SerpApi is not configured on the server yet.</p>';
+						return;
+					}
+
+					if (!videos.length) {
+							host.innerHTML = header + '<p class="yt-note">No video results found.</p>';
+						return;
+					}
+
+					const items = videos
+							.slice(0, 6)
+							.map((v, idx) => {
+							const title = escapeHtml(String(v?.title || 'Video'));
+								const link = safeUrl(v?.link);
+								const thumb = safeUrl(v?.thumbnail);
+							const meta = [v?.channel, v?.duration, v?.published_date].filter(Boolean).map(String).join(' • ');
+								const delay = Math.min(idx * 70, 280);
+								const thumbHtml =
+									thumb === '#'
+										? '<div class="yt-thumb" aria-hidden="true"></div>'
+										: '<img class="yt-thumb" src="' + escapeHtml(thumb) + '" alt="" loading="lazy" decoding="async" />';
+							return (
+									'<a class="yt-card" href="' +
+									escapeHtml(link) +
+									'" target="_blank" rel="noreferrer" style="animation-delay: ' +
+									delay +
+									'ms;">' +
+									thumbHtml +
+									'<div>' +
+										'<div class="yt-title">' +
+										title +
+										'</div>' +
+										'<div class="yt-meta">' +
+										escapeHtml(meta || 'YouTube') +
+										'</div>' +
+									'</div>' +
+								'</a>'
+							);
+						})
+						.join('');
+
+						host.innerHTML = header + '<div class="youtube-grid">' + items + '</div>';
+				}
+
+				function renderGameResult(data) {
+					const gameName = data?.game?.name ? String(data.game.name) : 'Game';
+					const reviews = Array.isArray(data?.reviews) ? data.reviews : [];
+					const canReview = Boolean(data?.authenticated);
+
+					const reviewsHtml = reviews.length
+						? '<div style="margin-top:10px; display:grid; gap:10px;">' +
+							reviews
+								.map((r) => {
+									return (
+										'<div style="border:1px solid rgba(255,255,255,0.14); background: rgba(7,10,22,0.25); border-radius: 14px; padding: 12px;">' +
+										'<div style="display:flex; justify-content:space-between; gap:10px; align-items:baseline;">' +
+										'<strong>' +
+										escapeHtml(String(r.title || 'Review')) +
+										'</strong>' +
+										'<span style="color: rgba(255,255,255,0.70); font-size: 12.5px;">' +
+										'Rating ' +
+										escapeHtml(String(r.rating)) +
+										'/10 • ' +
+										escapeHtml(String(r.author || 'user')) +
+										'</span>' +
+										'</div>' +
+										'<div style="margin-top:6px; color: rgba(255,255,255,0.78); font-size: 13.5px;">' +
+										escapeHtml(String(r.body || '')) +
+										'</div>' +
+										'</div>'
+									);
+								})
+								.join('') +
+							'</div>'
+						: '<p style="margin: 8px 0 0; color: rgba(255,255,255,0.70);">No reviews yet — be the first.</p>';
+
+					const reviewFormHtml = canReview
+						? (
+							'<div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 12px;">' +
+							'<strong>Write a review</strong>' +
+							'<form id="reviewForm" style="margin-top: 10px; display:grid; gap:10px;">' +
+							'<div style="display:grid; grid-template-columns: 1fr 140px; gap:10px;">' +
+							'<div>' +
+							'<label style="display:block; font-size:12.5px; color: rgba(255,255,255,0.70); margin-bottom:6px;">Title</label>' +
+							'<input id="revTitle" type="text" placeholder="Short summary" style="width:100%; padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.92);" />' +
+							'</div>' +
+							'<div>' +
+							'<label style="display:block; font-size:12.5px; color: rgba(255,255,255,0.70); margin-bottom:6px;">Rating</label>' +
+							'<input id="revRating" type="number" min="1" max="10" value="8" style="width:100%; padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.92);" />' +
+							'</div>' +
+							'</div>' +
+							'<div>' +
+							'<label style="display:block; font-size:12.5px; color: rgba(255,255,255,0.70); margin-bottom:6px;">Review</label>' +
+							'<textarea id="revBody" rows="4" placeholder="What did you like / dislike?" style="width:100%; padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.92); resize: vertical;"></textarea>' +
+							'</div>' +
+							'<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">' +
+							'<span style="color: rgba(255,255,255,0.58); font-size: 12.5px;">Signed in as ' +
+							escapeHtml(session?.user?.email || 'user') +
+							'</span>' +
+							'<button class="btn btn-primary" type="submit">Post review</button>' +
+							'</div>' +
+							'</form>' +
+							'<div id="reviewMsg" style="display:none; margin-top:10px; padding:10px 12px; border-radius: 14px; border:1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06);"></div>' +
+							'</div>'
+						)
+						: (
+							'<div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 12px;">' +
+							'<strong>Want to review?</strong>' +
+							'<p style="margin: 6px 0 0; color: rgba(255,255,255,0.70);">Sign in to post a review for this game.</p>' +
+							'<div style="margin-top: 10px;"><a class="btn btn-primary" href="./registration.html">Sign in</a></div>' +
+							'</div>'
+						);
+
+					result.innerHTML =
+						'<strong>' +
+						escapeHtml(gameName) +
+						'</strong>' +
+						'<p style="margin: 6px 0 0; color: rgba(255,255,255,0.70);">Community reviews</p>' +
+						reviewsHtml +
+						reviewFormHtml +
+							'<div id="youtubeSection" class="youtube">' +
+							'<strong>YouTube reviews</strong>' +
+							'<p class="yt-note">Loading videos…</p>' +
+							'<div class="youtube-grid">' +
+								[
+									1,
+									2,
+									3,
+								]
+									.map(() => {
+										return (
+											'<div class="yt-card yt-card--skeleton">' +
+												'<div class="yt-thumb skeleton" aria-hidden="true"></div>' +
+												'<div>' +
+													'<div class="yt-title skeleton" style="height: 16px; border-radius: 10px; background: rgba(255,255,255,0.06);"></div>' +
+													'<div class="yt-meta skeleton" style="height: 12px; width: 70%; border-radius: 10px; background: rgba(255,255,255,0.06);"></div>' +
+												'</div>' +
+											'</div>'
+										);
+									})
+									.join('') +
+							'</div>' +
+							'</div>';
+
+					const reviewForm = document.getElementById('reviewForm');
+					if (reviewForm) {
+						const my = data?.myReview;
+						if (my) {
+							const t = document.getElementById('revTitle');
+							const b = document.getElementById('revBody');
+							const r = document.getElementById('revRating');
+							if (t) t.value = String(my.title || '');
+							if (b) b.value = String(my.body || '');
+							if (r) r.value = String(my.rating || 8);
+						}
+						reviewForm.addEventListener('submit', onSubmitReview);
+					}
+				}
+
+				async function onSubmitReview(e) {
+					e.preventDefault();
+					if (!currentGame?.game?.id) return;
+
+					const msg = document.getElementById('reviewMsg');
+					if (msg) msg.style.display = 'none';
+
+					const title = String(document.getElementById('revTitle')?.value || '').trim();
+					const body = String(document.getElementById('revBody')?.value || '').trim();
+					const rating = Number(document.getElementById('revRating')?.value || 0);
+
+					try {
+						const res = await fetch('/api/reviews', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								game_id: currentGame.game.id,
+								rating,
+								title,
+								body,
+							}),
+						});
+						const data = await res.json().catch(() => ({}));
+						if (!res.ok) throw new Error(data?.error || 'request_failed');
+
+						if (msg) {
+							msg.style.display = 'block';
+							msg.style.borderColor = 'rgba(21, 213, 124, 0.35)';
+							msg.textContent = 'Review saved.';
+						}
+						await resolveGame(currentGame.game.name);
+					} catch (err) {
+						if (msg) {
+							msg.style.display = 'block';
+							msg.style.borderColor = 'rgba(255, 84, 122, 0.45)';
+							msg.textContent = String(err.message || err);
+						}
+					}
+				}
+
+				function escapeHtml(s) {
+					return s
+						.replace(/&/g, '&amp;')
+						.replace(/</g, '&lt;')
+						.replace(/>/g, '&gt;')
+						.replace(/"/g, '&quot;')
+						.replace(/'/g, '&#39;');
+				}
+
+					function safeUrl(url) {
+						const raw = String(url || '').trim();
+						if (!raw) return '#';
+						try {
+							const u = new URL(raw, window.location.href);
+							if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+						} catch {
+							// ignore
+						}
+						return '#';
+					}
+
+					async function safeJson(res) {
+						if (!res) return {};
+						if (res.status === 204 || res.status === 304) return {};
+						const text = await res.text().catch(() => '');
+						if (!text) return {};
+						try {
+							return JSON.parse(text);
+						} catch {
+							throw new Error('invalid_json_response');
+						}
+					}
+			})();
+		</script>
+	</body>
+</html>
+
