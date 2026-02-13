@@ -1,0 +1,13 @@
+#Env files always
+
+*.env
+node_modules/.env
+**/.env
+
+
+#Package.json always
+
+package-lock.json
+package.json
+backend/.env.example
+.CVS
