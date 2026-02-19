@@ -6,7 +6,7 @@ const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const { getJson } = require('serpapi');
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 3001);
 
 function createPool() {
 	if (process.env.DATABASE_URL) {
@@ -243,8 +243,19 @@ app.use((err, req, res, next) => {
 	return res.status(500).json({ error: 'server_error' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
 	// eslint-disable-next-line no-console
 	console.log(`Backend running on http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+	if (err && err.code === 'EADDRINUSE') {
+		// eslint-disable-next-line no-console
+		console.error(`Port ${PORT} is already in use.`);
+		// eslint-disable-next-line no-console
+		console.error('Stop the other server, or start this one with a different port (example: PORT=3001 npm start).');
+		process.exit(1);
+	}
+	throw err;
 });
 
