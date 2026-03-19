@@ -82,3 +82,27 @@ Definition of Done:
 - `auth`
 - `admin`
 
+## Gap Check From Current Jira Board
+
+### Items to Add or Clarify
+- Add a ticket to verify frontend is always served through backend so `/api/...` calls use same origin.
+- Add a ticket to apply auth SQL in `data/Auth/` (not only `supabase.sql`) and verify sign-in/register DB tables.
+- Add a ticket for review-read API acceptance criteria (search result + reviews list render states).
+- Add a ticket for API error handling on frontend (empty state, failed fetch, invalid game query).
+- Add a ticket for crawler environment setup (`SERPAPI_KEY`) and behavior when key is missing.
+- Add a ticket for admin moderation scope clarity (reviews only vs reviews + comments).
+- Add a ticket for role-based endpoint access checks (guest/user/reviewer/admin).
+- Add a ticket for smoke testing critical flows before sprint close.
+
+### Process Risks
+- Several stories are broad; add acceptance criteria to each story so done-state is testable.
+- Add dependency links between auth/database stories and review-posting stories to avoid blocked work.
+- Add one release-readiness ticket for runbook checks (`PORT` conflict handling, DB seed, env validation).
+
+### Suggested New Issues
+- SCRUM-X1: Verify same-origin frontend/backend integration for `/api/...` routes.
+- SCRUM-X2: Apply and validate auth SQL scripts from `data/Auth/`.
+- SCRUM-X3: Frontend error and empty-state handling for search/review pages.
+- SCRUM-X4: Configure and validate `SERPAPI_KEY` fallback behavior.
+- SCRUM-X5: Smoke test: search game, view reviews, sign in, post review, admin moderation.
+
