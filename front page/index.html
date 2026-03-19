@@ -155,7 +155,7 @@
 								cache: 'no-store',
 						});
 							const data = await safeJson(res);
-						if (!res.ok) throw new Error(data?.error || 'request_failed');
+						if (!res.ok) throw new Error(formatApiError(data, 'request_failed'));
 						currentGame = data;
 						await refreshSession();
 						updateAuthUI();
@@ -172,10 +172,10 @@
 						renderYoutubeSection({ loading: true });
 					try {
 							const res = await fetch('/api/crawler/youtube?q=' + encodeURIComponent(gameName), { cache: 'no-store' });
-							const data = await safeJson(res);
+						const data = await safeJson(res);
 							if (reqId !== youtubeReqId) return;
 						if (!res.ok) {
-							renderYoutubeSection({ error: data?.error || 'request_failed', videos: [] });
+							renderYoutubeSection({ error: data?.error || 'request_failed', reason: data?.reason || null, videos: [] });
 							return;
 						}
 						renderYoutubeSection(data);
@@ -219,6 +219,16 @@
 					const videos = Array.isArray(data?.videos) ? data.videos : [];
 					if (data?.error === 'serpapi_not_configured') {
 							host.innerHTML = header + '<p class="yt-note">SerpApi is not configured on the server yet.</p>';
+						return;
+					}
+
+					if (data?.error === 'serpapi_invalid_key') {
+							host.innerHTML = header + '<p class="yt-note">The configured SerpApi key is invalid.</p>';
+						return;
+					}
+
+					if (data?.error) {
+							host.innerHTML = header + '<p class="yt-note">' + escapeHtml(formatApiError(data, 'request_failed')) + '</p>';
 						return;
 					}
 
@@ -400,7 +410,7 @@
 							}),
 						});
 						const data = await res.json().catch(() => ({}));
-						if (!res.ok) throw new Error(data?.error || 'request_failed');
+						if (!res.ok) throw new Error(formatApiError(data, 'request_failed'));
 
 						if (msg) {
 							msg.style.display = 'block';
@@ -435,7 +445,28 @@
 						} catch {
 							// ignore
 						}
-						return '#';
+					return '#';
+				}
+
+					function formatApiError(data, fallback) {
+						const error = String(data?.error || '').trim();
+						const reason = String(data?.reason || '').trim();
+						if (error === 'db_unreachable' && reason === 'supabase_allow_list_blocked') {
+							return 'Database access is blocked for this machine. Add this IP to the Supabase allow-list or switch backend/.env to a reachable local Postgres instance.';
+						}
+						if (error === 'db_unreachable') {
+							return 'Database is currently unreachable. Check the backend database configuration and connectivity.';
+						}
+						if (error === 'db_schema_incomplete') {
+							return 'Database schema is incomplete. Run npm run db:init against the active database.';
+						}
+						if (error === 'serpapi_invalid_key') {
+							return 'The configured SerpApi key is invalid.';
+						}
+						if (error === 'serpapi_not_configured') {
+							return 'SerpApi is not configured on the server yet.';
+						}
+						return error || fallback;
 					}
 
 					async function safeJson(res) {
@@ -453,4 +484,3 @@
 		</script>
 	</body>
 </html>
-

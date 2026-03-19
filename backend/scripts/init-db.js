@@ -1,36 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-const { Pool } = require('pg');
-
-function resolveSslConfig() {
-	const sslMode = String(process.env.PGSSLMODE || '').toLowerCase();
-	if (sslMode === 'disable') return false;
-	if (sslMode === 'require') return { rejectUnauthorized: false };
-	if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase.co')) {
-		return { rejectUnauthorized: false };
-	}
-	return false;
-}
-
-function createPool() {
-	const ssl = resolveSslConfig();
-	if (process.env.DATABASE_URL) {
-		return new Pool({
-			connectionString: process.env.DATABASE_URL,
-			ssl,
-		});
-	}
-
-	return new Pool({
-		host: process.env.PGHOST || 'localhost',
-		port: Number(process.env.PGPORT || 5432),
-		user: process.env.PGUSER || 'postgres',
-		password: process.env.PGPASSWORD || '',
-		database: process.env.PGDATABASE || 'postgres',
-		ssl,
-	});
-}
+const {
+	checkRequiredSchema,
+	classifyDatabaseError,
+	createPool,
+} = require('../lib/db');
 
 async function run() {
 	const pool = createPool();
@@ -46,9 +20,20 @@ async function run() {
 			console.log('Applied:', path.basename(file));
 		}
 
+		const missing = await checkRequiredSchema(pool);
+		if (missing.length > 0) {
+			console.error('Database initialization finished, but required objects are still missing:');
+			for (const item of missing) {
+				console.error(`- Missing ${item.kind}: ${item.name}`);
+			}
+			process.exitCode = 1;
+			return;
+		}
+
 		console.log('Database initialization completed.');
 	} catch (err) {
-		console.error('Database initialization failed:', err.message);
+		const diagnosis = classifyDatabaseError(err);
+		console.error('Database initialization failed:', diagnosis ? diagnosis.detail : err.message);
 		process.exitCode = 1;
 	} finally {
 		await pool.end();

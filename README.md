@@ -37,14 +37,42 @@ npm start
 npm run db:init
 ```
 
+1. Verify what the backend is actually pointed at and whether the DB/schema are reachable:
+
+```bash
+# from repo root
+npm run db:check
+```
+
+1. Run a read-only runtime smoke check through the backend-served frontend:
+
+```bash
+# from repo root
+npm run verify:runtime
+```
+
 Notes:
 
 - Most endpoints require Postgres + the SQL in `data/supabase.sql` and `data/supabase-reviews.sql` to be applied.
+- `backend/.env` currently supports two modes:
+  - Supabase via `DATABASE_URL` (current verified repo setup).
+  - Local Postgres by removing `DATABASE_URL` and setting `PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` / `PGDATABASE`.
 - Supabase Cloud may reject connections unless your current IP is added to the project's network allow-list.
 - If using Supabase, set `PGSSLMODE=require` (or use a `DATABASE_URL` that already enforces SSL).
+- If using local Postgres, set `PGSSLMODE=disable`.
 - YouTube crawler requires `SERPAPI_KEY` in `backend/.env` (without quotes).
 - If the key is invalid, the API now responds with `serpapi_invalid_key` and the server keeps running.
 - If you get `EADDRINUSE`, start on a different port (example in PowerShell: `$env:PORT=3002; npm start`).
+- `data/supabase.sql` contains every schema object required by the live auth/game/review routes. `data/supabase-reviews.sql` only adds the crawler helper table and is not required for the current review API.
+
+## Manual end-to-end check after DB access is restored
+
+1. Run `npm run db:check` and confirm `Connection: OK` plus `Schema: READY`.
+2. Start the app with `npm start`.
+3. Open <http://localhost:3001/>.
+4. Register a new account and log in.
+5. Search for a game, post a review, refresh the search, and confirm the review persists.
+6. Confirm `/api/crawler/youtube?q=<game>` returns either video data, `serpapi_not_configured`, or `serpapi_invalid_key`.
 
 ## User Roles
 
