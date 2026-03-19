@@ -8,7 +8,6 @@ The frontend pages in `front page/` call the API using `/api/...` paths. That me
 
 1. Install backend deps:
 
-
 ```bash
 cd backend
 npm install
@@ -22,7 +21,6 @@ npm run backend:install
 
 1. Start the backend (it also serves the frontend):
 
-
 ```bash
 # from repo root
 npm start
@@ -30,12 +28,20 @@ npm start
 
 1. Open:
 
-
 <http://localhost:3001/>
+
+1. Initialize database schema and helper tables:
+
+```bash
+# from repo root
+npm run db:init
+```
 
 Notes:
 
-- Most endpoints require Postgres + the SQL in `data/supabase.sql` / `data/supabase-reviews.sql` (and the auth SQL) to be applied.
+- Most endpoints require Postgres + the SQL in `data/supabase.sql` and `data/supabase-reviews.sql` to be applied.
+- Supabase Cloud may reject connections unless your current IP is added to the project's network allow-list.
+- If using Supabase, set `PGSSLMODE=require` (or use a `DATABASE_URL` that already enforces SSL).
 - YouTube crawler requires `SERPAPI_KEY` in `backend/.env`.
 - If you get `EADDRINUSE`, start on a different port (example in PowerShell: `$env:PORT=3002; npm start`).
 

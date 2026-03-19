@@ -106,3 +106,81 @@ Definition of Done:
 - SCRUM-X4: Configure and validate `SERPAPI_KEY` fallback behavior.
 - SCRUM-X5: Smoke test: search game, view reviews, sign in, post review, admin moderation.
 
+## Implementation (Add These To Jira Now)
+
+### Sprint 1 (MVP foundation)
+- SCRUM-X1: Verify same-origin frontend/backend integration for `/api/...` routes.
+	- Labels: `task`, `backend`, `frontend`, `setup`
+	- Depends on: backend start script task
+	- Acceptance Criteria:
+		- App is accessed via backend URL (`http://localhost:3001/` or configured port).
+		- Search and review API calls succeed without CORS/browser-origin errors.
+		- README run section is followed and validated by at least one teammate.
+
+- SCRUM-X2: Apply and validate auth SQL scripts from `data/Auth/`.
+	- Labels: `task`, `database`, `auth`
+	- Depends on: DB setup task (`supabase.sql`)
+	- Acceptance Criteria:
+		- SQL from `data/Auth/` is applied successfully.
+		- Registration/sign-in related tables and constraints exist.
+		- A test user can be created and retrieved through the expected flow.
+
+- SCRUM-X6: Add acceptance criteria to current Sprint 1 user stories.
+	- Labels: `task`, `sprint`
+	- Depends on: none
+	- Acceptance Criteria:
+		- Each Sprint 1 story has at least 3 measurable done checks.
+		- Each story includes one success path and one failure/edge case.
+
+### Sprint 2 (auth + review creation)
+- SCRUM-X7: Enforce role-based access checks on write endpoints (guest/user/reviewer/admin).
+	- Labels: `task`, `backend`, `auth`, `admin`
+	- Depends on: SCRUM-X2 and sign-in story
+	- Acceptance Criteria:
+		- Guests cannot post or delete reviews.
+		- Reviewers can post their own review.
+		- Admin actions are restricted to admin role.
+		- Unauthorized actions return clear status codes/messages.
+
+- SCRUM-X8: Define admin moderation scope and split stories.
+	- Labels: `task`, `admin`, `review`
+	- Depends on: moderation stories
+	- Acceptance Criteria:
+		- Scope explicitly states whether comments are included.
+		- Moderation work is split into separate actionable tickets (delete/edit/approve if applicable).
+		- Team agrees on final scope in ticket description.
+
+### Sprint 3 (robustness + integration)
+- SCRUM-X3: Frontend error and empty-state handling for search/review pages.
+	- Labels: `task`, `frontend`, `review`
+	- Depends on: search and reviews read stories
+	- Acceptance Criteria:
+		- Empty search result shows user-friendly message.
+		- API/network failure shows recoverable error state.
+		- Invalid game input is handled without page break.
+
+- SCRUM-X4: Configure and validate `SERPAPI_KEY` fallback behavior.
+	- Labels: `task`, `backend`, `setup`
+	- Depends on: crawler feature story
+	- Acceptance Criteria:
+		- `SERPAPI_KEY` is read from `backend/.env`.
+		- Missing key produces a clear controlled error (no crash).
+		- Happy-path crawler request works when key is present.
+
+### Sprint 4 (QA + release)
+- SCRUM-X5: Smoke test critical flows before release.
+	- Labels: `task`, `review`, `sprint`
+	- Depends on: all critical feature stories
+	- Acceptance Criteria:
+		- Test checklist covers search, view reviews, sign in, post review, admin moderation.
+		- Each flow has pass/fail evidence (notes or screenshots).
+		- Critical failures are fixed or logged as release blockers.
+
+- SCRUM-X9: Release-readiness runbook check.
+	- Labels: `task`, `setup`, `github`
+	- Depends on: SCRUM-X5
+	- Acceptance Criteria:
+		- Port conflict handling (`EADDRINUSE`) documented and verified.
+		- Environment variables checklist validated.
+		- Database seed/setup steps validated end-to-end.
+

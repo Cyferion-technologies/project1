@@ -8,9 +8,23 @@ const { getJson } = require('serpapi');
 
 const PORT = Number(process.env.PORT || 3001);
 
+function resolveSslConfig() {
+	const sslMode = String(process.env.PGSSLMODE || '').toLowerCase();
+	if (sslMode === 'disable') return false;
+	if (sslMode === 'require') return { rejectUnauthorized: false };
+	if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase.co')) {
+		return { rejectUnauthorized: false };
+	}
+	return false;
+}
+
 function createPool() {
+	const ssl = resolveSslConfig();
 	if (process.env.DATABASE_URL) {
-		return new Pool({ connectionString: process.env.DATABASE_URL });
+		return new Pool({
+			connectionString: process.env.DATABASE_URL,
+			ssl,
+		});
 	}
 
 	return new Pool({
@@ -19,6 +33,7 @@ function createPool() {
 		user: process.env.PGUSER || 'postgres',
 		password: process.env.PGPASSWORD || '',
 		database: process.env.PGDATABASE || 'postgres',
+		ssl,
 	});
 }
 
