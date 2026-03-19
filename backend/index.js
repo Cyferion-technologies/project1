@@ -216,34 +216,38 @@ app.post('/api/reviews', requireAuth, async (req, res, next) => {
 
 app.get('/api/crawler/youtube', async (req, res, next) => {
 	try {
-		const apiKey = process.env.SERPAPI_KEY;
+		const apiKey = String(process.env.SERPAPI_KEY || '').trim().replace(/^['\"]|['\"]$/g, '');
 		if (!apiKey) return res.status(501).json({ error: 'serpapi_not_configured' });
 
 		const q = String(req.query.q || '').trim();
 		if (!q) return res.status(400).json({ error: 'q_required' });
 
 		const searchQuery = `${q} user reviews`;
-		getJson(
-			{
-				engine: 'youtube',
-				search_query: searchQuery,
-				api_key: apiKey,
-			},
-			(json) => {
-				const videos = Array.isArray(json?.video_results) ? json.video_results : [];
-				const trimmed = videos.slice(0, 6).map((v) => ({
-					title: v?.title || null,
-					link: v?.link || null,
-					channel: v?.channel?.name || v?.channel || null,
-					duration: v?.duration || null,
-					views: v?.views || null,
-					published_date: v?.published_date || null,
-					thumbnail: v?.thumbnail?.static || v?.thumbnail || null,
-				}));
-				return res.json({ query: searchQuery, videos: trimmed });
-			}
-		);
+		const json = await getJson({
+			engine: 'youtube',
+			search_query: searchQuery,
+			api_key: apiKey,
+		});
+
+		const videos = Array.isArray(json?.video_results) ? json.video_results : [];
+		const trimmed = videos.slice(0, 6).map((v) => ({
+			title: v?.title || null,
+			link: v?.link || null,
+			channel: v?.channel?.name || v?.channel || null,
+			duration: v?.duration || null,
+			views: v?.views || null,
+			published_date: v?.published_date || null,
+			thumbnail: v?.thumbnail?.static || v?.thumbnail || null,
+		}));
+
+		return res.json({ query: searchQuery, videos: trimmed });
 	} catch (err) {
+		if (typeof err === 'string' && err.toLowerCase().includes('invalid api key')) {
+			return res.status(502).json({ error: 'serpapi_invalid_key' });
+		}
+		if (typeof err?.message === 'string' && err.message.toLowerCase().includes('invalid api key')) {
+			return res.status(502).json({ error: 'serpapi_invalid_key' });
+		}
 		return next(err);
 	}
 });

@@ -42,7 +42,8 @@ Notes:
 - Most endpoints require Postgres + the SQL in `data/supabase.sql` and `data/supabase-reviews.sql` to be applied.
 - Supabase Cloud may reject connections unless your current IP is added to the project's network allow-list.
 - If using Supabase, set `PGSSLMODE=require` (or use a `DATABASE_URL` that already enforces SSL).
-- YouTube crawler requires `SERPAPI_KEY` in `backend/.env`.
+- YouTube crawler requires `SERPAPI_KEY` in `backend/.env` (without quotes).
+- If the key is invalid, the API now responds with `serpapi_invalid_key` and the server keeps running.
 - If you get `EADDRINUSE`, start on a different port (example in PowerShell: `$env:PORT=3002; npm start`).
 
 ## User Roles
