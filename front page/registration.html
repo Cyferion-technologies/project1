@@ -261,6 +261,21 @@
 					alertBox.style.display = 'block';
 				}
 
+				function formatApiError(data, fallback) {
+					const error = String(data?.error || '').trim();
+					const reason = String(data?.reason || '').trim();
+					if (error === 'db_unreachable' && reason === 'supabase_allow_list_blocked') {
+						return 'Database access is blocked for this machine. Add this IP to the Supabase allow-list or switch backend/.env to a reachable local Postgres instance.';
+					}
+					if (error === 'db_unreachable') {
+						return 'Database is currently unreachable. Check the backend database configuration and connectivity.';
+					}
+					if (error === 'db_schema_incomplete') {
+						return 'Database schema is incomplete. Run npm run db:init against the active database.';
+					}
+					return error || fallback;
+				}
+
 				async function postJson(url, body) {
 					const res = await fetch(url, {
 						method: 'POST',
@@ -269,7 +284,7 @@
 					});
 					const data = await res.json().catch(() => ({}));
 					if (!res.ok) {
-						const msg = data?.error ? String(data.error) : 'request_failed';
+						const msg = formatApiError(data, 'request_failed');
 						throw new Error(msg);
 					}
 					return data;
@@ -319,4 +334,3 @@
 		</script>
 	</body>
 </html>
-

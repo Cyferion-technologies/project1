@@ -5,7 +5,10 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "db:init": "node scripts/init-db.js",
+    "db:check": "node scripts/check-db.js",
+    "verify:runtime": "node scripts/verify-runtime.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",

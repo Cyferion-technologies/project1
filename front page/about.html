@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content="About project-1: MVP scope and roadmap." />
+		<title>project1 | About</title>
+		<link rel="stylesheet" href="../css/style.css" />
+	</head>
+
+	<body>
+		<a class="skip-link" href="#content">Skip to content</a>
+
+		<header>
+			<div class="container">
+				<div class="nav" aria-label="Primary navigation">
+					<a class="brand" href="./index.html" aria-label="Project1 home">
+						<div class="logo" aria-hidden="true"></div>
+						<div>
+							<strong>project1</strong>
+							<span>Video game reviews</span>
+						</div>
+					</a>
+
+					<nav class="nav-links" aria-label="Page links">
+						<a href="./index.html">Home</a>
+						<a href="#roadmap">Roadmap</a>
+					</nav>
+
+					<a class="btn btn-ghost" href="./registration.html">Write a review</a>
+				</div>
+			</div>
+		</header>
+
+		<main id="content">
+			<div class="container">
+				<section class="hero" aria-label="About project">
+					<div class="hero-inner">
+						<div class="eyebrow">About • MVP • Roadmap</div>
+						<h1>project-1</h1>
+						<p class="sub">
+							We’re building a simple game review experience: search a game, view community reviews, pull YouTube review
+							videos related to that game, and let users write and publish their own review.
+						</p>
+
+						<div class="about-grid" aria-label="Project details">
+							<section class="about-card" aria-label="MVP scope">
+								<h2>MVP (what we’re building first)</h2>
+								<ul class="about-list">
+									<li>Search a game and resolve it to a single result.</li>
+									<li>Show community reviews for that game.</li>
+									<li>Pull YouTube review videos for the searched game and show links.</li>
+									<li>Allow a signed-in user to write and post a review for that game.</li>
+								</ul>
+							</section>
+
+							<aside class="team-card" aria-label="Project-1 team">
+								<div class="team-card-title">Team</div>
+								<ul class="team-card-list">
+									<li>Benjamin Oliveira</li>
+									<li>Scott Palma</li>
+									<li>Darius Pal</li>
+								</ul>
+							</aside>
+						</div>
+
+						<section id="roadmap" class="about-card" aria-label="Roadmap">
+							<h2>Current roadmap</h2>
+							<ol class="about-list">
+								<li>Wire up the game search so users can reliably find the intended title.</li>
+								<li>Show stored reviews and enable posting new reviews (auth + validation).</li>
+								<li>AI crawler: query YouTube review videos for the searched game and return top matches.</li>
+								<li>Display those videos as clickable links/cards near the game results.</li>
+								<li>Connect the flow: after watching a video, the user can write a review for the same game.</li>
+							</ol>
+						</section>
+					</div>
+				</section>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<div class="foot">
+					<div>© <span id="year"></span> project1</div>
+					<div>About page • MVP + roadmap</div>
+				</div>
+			</div>
+		</footer>
+
+		<script>
+			(function () {
+				const year = document.getElementById('year');
+				year.textContent = String(new Date().getFullYear());
+			})();
+		</script>
+	</body>
+</html>

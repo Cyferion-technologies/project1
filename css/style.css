@@ -164,6 +164,70 @@
 				gap: 16px;
 			}
 
+			.hero-main {
+				display: grid;
+				gap: 16px;
+			}
+
+			.team-card {
+				border-radius: var(--radius);
+				border: 1px solid rgba(255, 255, 255, 0.14);
+				background: var(--card);
+				padding: 14px;
+				height: fit-content;
+			}
+
+			.team-card-title {
+				font-weight: 800;
+				letter-spacing: -0.2px;
+				font-size: 14px;
+			}
+
+			.team-card-list {
+				margin: 10px 0 0;
+				padding: 0;
+				list-style: none;
+				display: grid;
+				gap: 6px;
+				color: var(--muted);
+				font-size: 13px;
+			}
+
+			.about-grid {
+				display: grid;
+				grid-template-columns: 1fr;
+				gap: 12px;
+			}
+
+			.about-card {
+				border-radius: var(--radius);
+				border: 1px solid rgba(255, 255, 255, 0.14);
+				background: var(--card);
+				padding: 14px;
+			}
+
+			.about-card h2 {
+				margin: 0;
+				font-size: 16px;
+				letter-spacing: -0.2px;
+			}
+
+			.about-list {
+				margin: 10px 0 0;
+				padding-left: 18px;
+				color: var(--muted);
+				font-size: 13.5px;
+				display: grid;
+				gap: 6px;
+			}
+
+			@media (min-width: 860px) {
+				.about-grid {
+					grid-template-columns: 1fr 320px;
+					align-items: start;
+				}
+			}
+
 			.eyebrow {
 				display: inline-flex;
 				align-items: center;
