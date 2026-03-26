@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content="Review dashboard — see videos, read reviews, and write your own." />
+		<title>Dashboard | Project1</title>
+		<link rel="stylesheet" href="../css/style.css" />
+		<style>
+			.dashboard-header { padding: 24px 0; border-bottom: 1px solid var(--line); }
+			.dashboard-header h1 { margin: 0; font-size: 28px; }
+			.dashboard-header p { margin: 6px 0 0; color: var(--muted); }
+
+			.dashboard-controls {
+				display: flex;
+				gap: 12px;
+				align-items: center;
+				flex-wrap: wrap;
+				margin-top: 16px;
+			}
+
+			.dashboard-controls input {
+				flex: 1;
+				min-width: 200px;
+				padding: 12px;
+				border-radius: var(--radius);
+				border: 1px solid var(--line);
+				background: var(--card);
+				color: var(--text);
+				font-size: 14px;
+			}
+
+			.dashboard-controls input::placeholder { color: var(--muted); }
+
+			.section-group { display: grid; gap: 32px; margin: 32px 0; }
+
+			.section {
+				border-top: 2px solid var(--accent);
+				padding-top: 16px;
+			}
+
+			.section h2 {
+				margin: 0;
+				font-size: 20px;
+				color: var(--text);
+			}
+
+			.section-desc {
+				margin: 6px 0 0;
+				color: var(--muted);
+				font-size: 13px;
+			}
+
+			.reviews-container {
+				display: grid;
+				gap: 12px;
+				margin-top: 16px;
+			}
+
+			.review-card {
+				border: 1px solid var(--line);
+				background: var(--card);
+				border-radius: var(--radius);
+				padding: 16px;
+				transition: background 160ms ease;
+			}
+
+			.review-card:hover { background: var(--card2); }
+
+			.review-card-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				gap: 12px;
+				margin-bottom: 8px;
+			}
+
+			.review-card-title { font-weight: 600; font-size: 15px; }
+
+			.review-card-meta {
+				font-size: 12px;
+				color: var(--muted);
+				white-space: nowrap;
+			}
+
+			.review-card-body {
+				color: rgba(255, 255, 255, 0.80);
+				font-size: 14px;
+				line-height: 1.6;
+			}
+
+			.youtube-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+				gap: 12px;
+				margin-top: 16px;
+			}
+
+			.yt-card {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				overflow: hidden;
+				cursor: pointer;
+				transition: all 160ms ease;
+				text-decoration: none;
+			}
+
+			.yt-card:hover {
+				border-color: var(--accent2);
+				background: rgba(0, 214, 255, 0.05);
+				transform: translateY(-2px);
+			}
+
+			.yt-thumb {
+				width: 100%;
+				aspect-ratio: 16 / 9;
+				background: linear-gradient(135deg, rgba(124, 92, 255, 0.15), rgba(0, 214, 255, 0.10));
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--muted);
+				font-size: 12px;
+			}
+
+			.yt-thumb img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+			.yt-info {
+				padding: 0 10px 10px;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				flex: 1;
+			}
+
+			.yt-title {
+				font-size: 13px;
+				font-weight: 500;
+				line-height: 1.4;
+				display: -webkit-box;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+			}
+
+			.yt-meta {
+				font-size: 11px;
+				color: var(--muted);
+				display: -webkit-box;
+				-webkit-line-clamp: 1;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+			}
+
+			.review-form {
+				border: 1px solid var(--line);
+				background: var(--card);
+				border-radius: var(--radius);
+				padding: 20px;
+				margin-top: 16px;
+			}
+
+			.form-group {
+				display: grid;
+				gap: 10px;
+				margin-bottom: 16px;
+			}
+
+			.form-group label {
+				font-size: 13px;
+				color: var(--muted);
+				font-weight: 500;
+			}
+
+			.form-group input,
+			.form-group textarea {
+				padding: 12px;
+				border-radius: var(--radius);
+				border: 1px solid var(--line);
+				background: rgba(255, 255, 255, 0.06);
+				color: var(--text);
+				font-family: inherit;
+				font-size: 14px;
+			}
+
+			.form-group input::placeholder,
+			.form-group textarea::placeholder { color: var(--muted); }
+
+			.form-row {
+				display: grid;
+				grid-template-columns: 1fr 140px;
+				gap: 12px;
+			}
+
+			.form-group textarea { resize: vertical; min-height: 100px; }
+
+			.form-footer {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 12px;
+				flex-wrap: wrap;
+			}
+
+			.form-user { font-size: 12px; color: var(--muted); }
+
+			.empty-state {
+				text-align: center;
+				padding: 32px 20px;
+				color: var(--muted);
+			}
+
+			.empty-state strong { display: block; margin-bottom: 8px; color: var(--text); }
+
+			.btn {
+				padding: 10px 20px;
+				border-radius: var(--radius);
+				border: 1px solid var(--line);
+				background: transparent;
+				color: var(--text);
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 500;
+				transition: all 160ms ease;
+				text-align: center;
+			}
+
+			.btn:hover { border-color: var(--accent); background: rgba(124, 92, 255, 0.08); }
+
+			.btn-primary {
+				background: var(--accent);
+				border-color: var(--accent);
+				color: white;
+			}
+
+			.btn-primary:hover { background: #6b4dd6; }
+
+			.loading, .error {
+				padding: 20px;
+				text-align: center;
+				color: var(--muted);
+			}
+
+			.skeleton {
+				background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%);
+				background-size: 200% 100%;
+				animation: loading 2s infinite;
+			}
+
+			@keyframes loading {
+				0% { background-position: 200% 0; }
+				100% { background-position: -200% 0; }
+			}
+
+			@media (max-width: 640px) {
+				.dashboard-controls {
+					flex-direction: column;
+				}
+				.dashboard-controls input {
+					width: 100%;
+				}
+				.form-row {
+					grid-template-columns: 1fr;
+				}
+				.youtube-grid {
+					grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+				}
+			}
+		</style>
+	</head>
+
+	<body>
+		<a class="skip-link" href="#content">Skip to content</a>
+
+		<header>
+			<div class="container">
+				<div class="nav">
+					<a class="brand" href="./index.html" aria-label="Project1 home">
+						<div class="logo" aria-hidden="true"></div>
+						<div>
+							<strong>project1</strong>
+							<span>Video game reviews</span>
+						</div>
+					</a>
+
+					<nav class="nav-links">
+						<a href="./index.html">Search</a>
+						<a href="./about.html">About</a>
+					</nav>
+
+					<a id="navAuthLink" class="btn btn-ghost" href="./registration.html">Write a review</a>
+				</div>
+			</div>
+		</header>
+
+		<main id="content">
+			<div class="container">
+				<div class="dashboard-header">
+					<h1>Game Review Dashboard</h1>
+					<p>Explore videos, read reviews, and share your opinion</p>
+				</div>
+
+				<div class="dashboard-controls">
+					<input
+						id="searchInput"
+						type="text"
+						placeholder="Search a game (e.g., Elden Ring, Minecraft)"
+						autocomplete="off"
+					/>
+					<button class="btn btn-primary" id="searchBtn">Search</button>
+				</div>
+
+				<div id="result" style="display: none; margin-top: 24px;">
+					<div class="section-group">
+						<!-- YouTube Videos Section -->
+						<section class="section">
+							<h2>YouTube Reviews</h2>
+							<p class="section-desc" id="youtubeDesc">
+								Video reviews and gameplay clips from content creators
+							</p>
+							<div id="youtubeContainer" class="youtube-grid"></div>
+						</section>
+
+						<!-- Community Reviews Section -->
+						<section class="section">
+							<h2>Community Reviews</h2>
+							<p class="section-desc">
+								Ratings and detailed reviews from other gamers
+							</p>
+							<div id="reviewsContainer" class="reviews-container"></div>
+						</section>
+
+						<!-- Write Review Section -->
+						<section class="section">
+							<h2>Write Your Review</h2>
+							<p class="section-desc">Share your thoughts about this game</p>
+							<div id="reviewForm"></div>
+						</section>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<div class="foot">
+					<div>© <span id="year"></span> project1</div>
+					<div>Backend-served app • Powered by Supabase & SerpAPI</div>
+				</div>
+			</div>
+		</footer>
+
+		<script>
+			const year = document.getElementById('year');
+			year.textContent = String(new Date().getFullYear());
+
+			const searchInput = document.getElementById('searchInput');
+			const searchBtn = document.getElementById('searchBtn');
+			const resultDiv = document.getElementById('result');
+			const navAuthLink = document.getElementById('navAuthLink');
+
+			let session = { authenticated: false, user: null };
+			let currentGame = null;
+
+			init();
+
+			async function init() {
+				await refreshSession();
+				updateAuthUI();
+				searchBtn.addEventListener('click', handleSearch);
+				searchInput.addEventListener('keypress', (e) => {
+					if (e.key === 'Enter') handleSearch();
+				});
+			}
+
+			async function refreshSession() {
+				try {
+					const res = await fetch('/api/me', { cache: 'no-store' });
+					session = await safeJson(res);
+				} catch {
+					session = { authenticated: false, user: null };
+				}
+			}
+
+			function updateAuthUI() {
+				if (session?.authenticated) {
+					navAuthLink.textContent = 'Account';
+					navAuthLink.href = './registration.html';
+				} else {
+					navAuthLink.textContent = 'Sign in to review';
+					navAuthLink.href = './registration.html';
+				}
+			}
+
+			async function handleSearch() {
+				const query = searchInput.value.trim();
+				if (!query) {
+					resultDiv.style.display = 'none';
+					return;
+				}
+				resultDiv.style.display = 'block';
+				await loadGameData(query);
+			}
+
+			async function loadGameData(gameName) {
+				try {
+					// Show loading state
+					document.getElementById('youtubeContainer').innerHTML =
+						'<div class="loading">Loading videos...</div>';
+					document.getElementById('reviewsContainer').innerHTML =
+						'<div class="loading">Loading reviews...</div>';
+					document.getElementById('reviewForm').innerHTML = '';
+
+					// Refresh session to make sure auth is current
+					await refreshSession();
+
+					// Fetch game data and reviews
+					const gameRes = await fetch('/api/games/resolve', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ name: gameName }),
+						cache: 'no-store',
+					});
+
+					const gameData = await safeJson(gameRes);
+					if (!gameRes.ok) {
+						throw new Error(formatApiError(gameData, 'failed_to_load'));
+					}
+
+					currentGame = gameData;
+
+					// Render reviews
+					renderReviews(gameData.reviews || []);
+
+					// Fetch and render YouTube videos
+					loadYoutubeVideos(gameName);
+
+					// Render review form
+					renderReviewForm(gameData);
+				} catch (err) {
+					document.getElementById('youtubeContainer').innerHTML =
+						'<div class="error">' + escapeHtml(String(err.message)) + '</div>';
+					document.getElementById('reviewsContainer').innerHTML =
+						'<div class="error">' + escapeHtml(String(err.message)) + '</div>';
+				}
+			}
+
+			async function loadYoutubeVideos(gameName) {
+				try {
+					const res = await fetch(
+						'/api/crawler/youtube?q=' + encodeURIComponent(gameName),
+						{ cache: 'no-store' }
+					);
+					const data = await safeJson(res);
+
+					if (!res.ok) {
+						if (data?.error === 'serpapi_not_configured') {
+							document.getElementById('youtubeContainer').innerHTML =
+								'<div class="empty-state"><strong>SerpAPI not configured</strong><p>YouTube videos cannot be loaded at this time.</p></div>';
+							return;
+						}
+						if (data?.error === 'serpapi_invalid_key') {
+							document.getElementById('youtubeContainer').innerHTML =
+								'<div class="empty-state"><strong>Invalid API key</strong><p>Please check your SerpAPI configuration.</p></div>';
+							return;
+						}
+						throw new Error(data?.error || 'Failed to load videos');
+					}
+
+					const videos = Array.isArray(data?.videos) ? data.videos : [];
+					renderYoutubeVideos(videos);
+				} catch (err) {
+					document.getElementById('youtubeContainer').innerHTML =
+						'<div class="error">' + escapeHtml(String(err.message)) + '</div>';
+				}
+			}
+
+			function renderYoutubeVideos(videos) {
+				const container = document.getElementById('youtubeContainer');
+				if (!videos.length) {
+					container.innerHTML =
+						'<div class="empty-state"><strong>No videos found</strong><p>Try searching with a different game name.</p></div>';
+					return;
+				}
+
+				container.innerHTML = videos
+					.map((v) => {
+						const link = safeUrl(v?.link);
+						const thumb = safeUrl(v?.thumbnail);
+						const title = escapeHtml(String(v?.title || 'Video'));
+						const channel = escapeHtml(String(v?.channel || 'YouTube'));
+						const meta = [v?.duration, v?.published_date]
+							.filter(Boolean)
+							.map(String)
+							.join(' • ');
+
+						const thumbHtml = thumb === '#'
+							? '<div class="yt-thumb">Video</div>'
+							: '<img class="yt-thumb" src="' + escapeHtml(thumb) + '" alt="' + title + '" loading="lazy" />';
+
+						return (
+							'<a class="yt-card" href="' + escapeHtml(link) + '" target="_blank" rel="noreferrer">' +
+							thumbHtml +
+							'<div class="yt-info">' +
+							'<div class="yt-title">' + title + '</div>' +
+							'<div class="yt-meta">' + escapeHtml(channel + (meta ? ' • ' + meta : '')) + '</div>' +
+							'</div>' +
+							'</a>'
+						);
+					})
+					.join('');
+			}
+
+			function renderReviews(reviews) {
+				const container = document.getElementById('reviewsContainer');
+				if (!reviews.length) {
+					container.innerHTML =
+						'<div class="empty-state"><strong>No reviews yet</strong><p>Be the first to review this game!</p></div>';
+					return;
+				}
+
+				container.innerHTML = reviews
+					.map((r) => {
+						const rating = Math.min(Math.max(Number(r.rating) || 0, 1), 10);
+						const stars = '★'.repeat(rating) + '☆'.repeat(10 - rating);
+						return (
+							'<div class="review-card">' +
+							'<div class="review-card-header">' +
+							'<div class="review-card-title">' + escapeHtml(String(r.title || 'Review')) + '</div>' +
+							'<div class="review-card-meta">' + stars + ' ' + rating + '/10</div>' +
+							'</div>' +
+							'<div class="review-card-body">' + escapeHtml(String(r.body || '')) + '</div>' +
+							'<div style="margin-top: 8px; font-size: 12px; color: var(--muted);">' +
+							'by ' + escapeHtml(String(r.author || 'user')) +
+							' • ' + formatDate(r.created_at) +
+							'</div>' +
+							'</div>'
+						);
+					})
+					.join('');
+			}
+
+			function renderReviewForm(gameData) {
+				const container = document.getElementById('reviewForm');
+
+				if (!session?.authenticated) {
+					container.innerHTML =
+						'<div class="empty-state" style="padding: 24px;">' +
+						'<strong>Sign in to write a review</strong>' +
+						'<p style="margin: 8px 0;">Create an account to share your thoughts about this game.</p>' +
+						'<a class="btn btn-primary" href="./registration.html" style="display: inline-block; margin-top: 12px;">Sign in</a>' +
+						'</div>';
+					return;
+				}
+
+				const gameId = currentGame?.game?.id;
+				if (!gameId) return;
+
+				const formHtml =
+					'<form id="reviewFormElement" class="review-form">' +
+					'<div class="form-row">' +
+					'<div class="form-group">' +
+					'<label for="revTitle">Title</label>' +
+					'<input id="revTitle" type="text" placeholder="Brief summary of your thoughts" required />' +
+					'</div>' +
+					'<div class="form-group">' +
+					'<label for="revRating">Rating</label>' +
+					'<input id="revRating" type="number" min="1" max="10" value="8" required />' +
+					'</div>' +
+					'</div>' +
+					'<div class="form-group">' +
+					'<label for="revBody">Your Review</label>' +
+					'<textarea id="revBody" placeholder="What did you like or dislike? Be specific and helpful." required></textarea>' +
+					'</div>' +
+					'<div class="form-footer">' +
+					'<div class="form-user">Signed in as <strong>' + escapeHtml(session.user?.email || 'user') + '</strong></div>' +
+					'<button type="submit" class="btn btn-primary">Post Review</button>' +
+					'</div>' +
+					'<div id="reviewMessage" style="display: none; margin-top: 12px; padding: 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card);"></div>' +
+					'</form>';
+
+				container.innerHTML = formHtml;
+
+				document.getElementById('reviewFormElement').addEventListener('submit', async (e) => {
+					e.preventDefault();
+					await submitReview(gameId);
+				});
+			}
+
+			async function submitReview(gameId) {
+				const titleInput = document.getElementById('revTitle');
+				const ratingInput = document.getElementById('revRating');
+				const bodyInput = document.getElementById('revBody');
+				const msgDiv = document.getElementById('reviewMessage');
+
+				const title = titleInput.value.trim();
+				const rating = Number(ratingInput.value);
+				const body = bodyInput.value.trim();
+
+				if (!title || !body || !Number.isInteger(rating) || rating < 1 || rating > 10) {
+					msgDiv.style.display = 'block';
+					msgDiv.innerHTML = '<strong style="color: var(--accent);">Please fill all fields correctly</strong>';
+					return;
+				}
+
+				try {
+					msgDiv.innerHTML = '<strong>Posting...</strong>';
+					msgDiv.style.display = 'block';
+
+					const res = await fetch('/api/reviews', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ game_id: gameId, rating, title, body }),
+					});
+
+					const data = await safeJson(res);
+
+					if (!res.ok) {
+						throw new Error(formatApiError(data, 'failed_to_post'));
+					}
+
+					msgDiv.innerHTML = '<strong style="color: var(--accent3);">✓ Review posted successfully!</strong>';
+					titleInput.value = '';
+					ratingInput.value = '8';
+					bodyInput.value = '';
+
+					// Reload game data to show the new review
+					setTimeout(() => {
+						const gameName = currentGame?.game?.name;
+						if (gameName) loadGameData(gameName);
+					}, 1000);
+				} catch (err) {
+					msgDiv.innerHTML = '<strong style="color: rgb(255, 107, 107);">✗ ' + escapeHtml(String(err.message)) + '</strong>';
+				}
+			}
+
+			function formatDate(dateStr) {
+				if (!dateStr) return '';
+				const date = new Date(dateStr);
+				return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+			}
+
+			function escapeHtml(str) {
+				const div = document.createElement('div');
+				div.textContent = str;
+				return div.innerHTML;
+			}
+
+			function safeUrl(url) {
+				if (!url) return '#';
+				try {
+					new URL(url);
+					return url;
+				} catch {
+					return '#';
+				}
+			}
+
+			function safeJson(res) {
+				return res.json().catch(() => ({}));
+			}
+
+			function formatApiError(data, fallback) {
+				if (typeof data?.error === 'string') {
+					return data.error.replace(/_/g, ' ');
+				}
+				return fallback;
+			}
+		</script>
+	</body>
+</html>
