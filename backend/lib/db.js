@@ -29,6 +29,21 @@ const REQUIRED_SCHEMA_OBJECTS = [
 		sql: "SELECT to_regclass('app.reviews') IS NOT NULL AS present",
 	},
 	{
+		kind: 'table',
+		name: 'app.review_comments',
+		sql: "SELECT to_regclass('app.review_comments') IS NOT NULL AS present",
+	},
+	{
+		kind: 'table',
+		name: 'app.game_searches',
+		sql: "SELECT to_regclass('app.game_searches') IS NOT NULL AS present",
+	},
+	{
+		kind: 'table',
+		name: 'app.video_search_results',
+		sql: "SELECT to_regclass('app.video_search_results') IS NOT NULL AS present",
+	},
+	{
 		kind: 'function',
 		name: 'app.signup',
 		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'signup') AS present",
@@ -58,7 +73,32 @@ const REQUIRED_SCHEMA_OBJECTS = [
 		name: 'app.list_reviews',
 		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'list_reviews') AS present",
 	},
+	{
+		kind: 'function',
+		name: 'app.add_review_comment',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'add_review_comment') AS present",
+	},
+	{
+		kind: 'function',
+		name: 'app.list_review_comments',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'list_review_comments') AS present",
+	},
+	{
+		kind: 'function',
+		name: 'app.log_game_search',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'log_game_search') AS present",
+	},
+	{
+		kind: 'function',
+		name: 'app.store_video_results',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'store_video_results') AS present",
+	},
 ];
+
+function readIntEnv(name, fallback) {
+	const value = Number(readEnvValue(name, String(fallback)));
+	return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
 
 function readEnvValue(name, fallback = '') {
 	return String(process.env[name] ?? fallback)
@@ -146,10 +186,16 @@ function getPublicDatabaseSummary(target = getDatabaseTarget()) {
 function createPool() {
 	const ssl = resolveSslConfig();
 	const connectionString = readEnvValue('DATABASE_URL');
+	const commonPoolConfig = {
+		ssl,
+		max: readIntEnv('PGPOOL_MAX', 10),
+		idleTimeoutMillis: readIntEnv('PG_IDLE_TIMEOUT_MS', 30000),
+		connectionTimeoutMillis: readIntEnv('PG_CONNECT_TIMEOUT_MS', 5000),
+	};
 	if (connectionString) {
 		return new Pool({
 			connectionString,
-			ssl,
+			...commonPoolConfig,
 		});
 	}
 
@@ -159,7 +205,7 @@ function createPool() {
 		user: readEnvValue('PGUSER', 'postgres') || 'postgres',
 		password: readEnvValue('PGPASSWORD', ''),
 		database: readEnvValue('PGDATABASE', 'postgres') || 'postgres',
-		ssl,
+		...commonPoolConfig,
 	});
 }
 

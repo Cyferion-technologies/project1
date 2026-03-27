@@ -3,14 +3,10 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="description" content="Create a project1 account to post game reviews." />
-		<title>project1 | Sign up</title>
+		<meta name="description" content="Log in to project1 and continue writing reviews." />
+		<title>project1 | Login</title>
 		<link rel="stylesheet" href="../css/style.css" />
 		<style>
-			auth-wrap {
-				display: block;
-			}
-
 			.auth-card {
 				border-radius: 24px;
 				border: 1px solid rgba(255, 255, 255, 0.14);
@@ -65,26 +61,26 @@
 						<a href="./index.html">Home</a>
 						<a href="./dashboard.html">Dashboard</a>
 						<a href="./about.html">About</a>
-						<a href="./login.html">Login</a>
+						<a href="./registration.html">Sign up</a>
 					</nav>
-					<a class="btn btn-ghost" href="./login.html">Already have an account?</a>
+					<a class="btn btn-ghost" href="./registration.html">Create account</a>
 				</div>
 			</div>
 		</header>
 
 		<main id="content">
-			<div class="container auth-wrap">
+			<div class="container">
 				<section class="auth-card">
-					<div class="eyebrow">Sign up • Account creation</div>
-					<h1>Create your project1 account</h1>
-					<p class="sub">Use your account to post ratings, reviews, and comments inside game threads.</p>
+					<div class="eyebrow">Login • Existing account</div>
+					<h1>Log in to your account</h1>
+					<p class="sub">If you already have an account, log in here first. New users can sign up in one click.</p>
 
-					<form id="signupForm" class="auth-form">
+					<form id="loginForm" class="auth-form">
 						<input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
-						<input id="password" type="password" autocomplete="new-password" placeholder="At least 10 characters" required />
-						<button type="submit" class="btn btn-primary">Create account</button>
+						<input id="password" type="password" autocomplete="current-password" placeholder="Your password" required />
+						<button type="submit" class="btn btn-primary">Login</button>
 					</form>
-					<p class="auth-help">Already registered? <a href="./login.html">Go to the login page</a>.</p>
+					<p class="auth-help">No account yet? <a href="./registration.html">Create a new account</a>.</p>
 					<div id="authAlert" class="auth-alert" role="status" aria-live="polite"></div>
 				</section>
 			</div>
@@ -94,7 +90,7 @@
 			<div class="container">
 				<div class="foot">
 					<div>© <span id="year"></span> project1</div>
-					<div>Sign-up flow</div>
+					<div>Login flow</div>
 				</div>
 			</div>
 		</footer>
@@ -102,7 +98,7 @@
 		<script>
 			(function () {
 				document.getElementById('year').textContent = String(new Date().getFullYear());
-				const form = document.getElementById('signupForm');
+				const form = document.getElementById('loginForm');
 				const alertBox = document.getElementById('authAlert');
 
 				function show(message, isError) {
@@ -122,7 +118,7 @@
 					}
 
 					try {
-						const res = await fetch('/api/auth/register', {
+						const res = await fetch('/api/auth/login', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({ email, password }),
@@ -130,19 +126,19 @@
 						const data = await res.json().catch(() => ({}));
 						if (!res.ok) {
 							const err = String(data?.error || 'request_failed');
-							if (err === 'email_already_exists') {
-								show('That email is already registered. Use login instead.', true);
+							if (err === 'invalid_credentials') {
+								show('Invalid email or password.', true);
 								return;
 							}
 							show(err.replace(/_/g, ' '), true);
 							return;
 						}
-						show('Account created. Redirecting to login...', false);
+						show('Logged in. Redirecting to dashboard...', false);
 						setTimeout(() => {
-							window.location.href = './login.html';
-						}, 700);
+							window.location.href = './dashboard.html';
+						}, 600);
 					} catch {
-						show('Unable to register right now.', true);
+						show('Unable to log in right now.', true);
 					}
 				});
 			})();

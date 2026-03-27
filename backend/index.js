@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const { getJson } = require('serpapi');
@@ -10,6 +11,12 @@ const {
 } = require('./lib/db');
 
 const PORT = Number(process.env.PORT || 3001);
+const MAX_REVIEW_TITLE = 120;
+const MAX_REVIEW_BODY = 4000;
+const MAX_COMMENT_BODY = 1000;
+
+const packageJsonPath = path.join(__dirname, '..', 'package.json');
+const backendPackageJsonPath = path.join(__dirname, 'package.json');
 
 const pool = createPool();
 const app = express();
@@ -71,11 +78,46 @@ function isSecureRequest(req) {
 function getSessionCookieOptions(req) {
 	return {
 		httpOnly: true,
-		sameSite: 'lax',
+		sameSite: 'strict',
 		secure: isSecureRequest(req),
 		maxAge: 1000 * 60 * 60 * 24 * 7,
 	};
 }
+
+function sanitizeText(input, maxLength) {
+	if (typeof input !== 'string') return '';
+	const normalized = input.replace(/\s+/g, ' ').trim();
+	if (!normalized) return '';
+	return normalized.slice(0, maxLength);
+}
+
+function parseReviewId(value) {
+	const reviewId = String(value || '').trim();
+	if (!/^[0-9a-f-]{36}$/i.test(reviewId)) return null;
+	return reviewId;
+}
+
+function parseRepoMeta() {
+	try {
+		const root = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+		const backend = JSON.parse(fs.readFileSync(backendPackageJsonPath, 'utf8'));
+		return {
+			projectName: root.name || 'project1',
+			rootScripts: root.scripts || {},
+			backendName: backend.name || 'project1-backend',
+			backendScripts: backend.scripts || {},
+		};
+	} catch {
+		return {
+			projectName: 'project1',
+			rootScripts: {},
+			backendName: 'project1-backend',
+			backendScripts: {},
+		};
+	}
+}
+
+const repoMeta = parseRepoMeta();
 
 async function getUserIdFromRequest(req) {
 	const token = req.cookies?.session_token;
@@ -113,7 +155,8 @@ app.get('/api/me', async (req, res, next) => {
 
 app.post('/api/auth/register', async (req, res, next) => {
 	try {
-		const { email, password } = req.body || {};
+		const email = sanitizeText(req.body?.email, 320).toLowerCase();
+		const password = String(req.body?.password || '');
 		if (!email || !password) return res.status(400).json({ error: 'email_and_password_required' });
 
 		const { rows } = await pool.query('SELECT app.signup($1, $2) AS user_id', [email, password]);
@@ -129,7 +172,8 @@ app.post('/api/auth/register', async (req, res, next) => {
 
 app.post('/api/auth/login', async (req, res, next) => {
 	try {
-		const { email, password } = req.body || {};
+		const email = sanitizeText(req.body?.email, 320).toLowerCase();
+		const password = String(req.body?.password || '');
 		if (!email || !password) return res.status(400).json({ error: 'email_and_password_required' });
 
 		const ip = req.ip;
@@ -159,13 +203,25 @@ app.post('/api/auth/logout', async (req, res, next) => {
 		}
 		res.clearCookie('session_token', {
 			httpOnly: true,
-			sameSite: 'lax',
+			sameSite: 'strict',
 			secure: isSecureRequest(req),
 		});
 		return res.json({ ok: true });
 	} catch (err) {
 		return next(err);
 	}
+});
+
+app.get('/api/meta/repo', (req, res) => {
+	return res.json({
+		repo: repoMeta,
+		stack: {
+			frontend: 'Vanilla HTML/CSS/JS',
+			backend: 'Node.js + Express',
+			database: 'PostgreSQL (Supabase or local)',
+			crawler: 'SerpAPI YouTube engine',
+		},
+	});
 });
 
 app.post('/api/games/resolve', async (req, res, next) => {
@@ -176,6 +232,14 @@ app.post('/api/games/resolve', async (req, res, next) => {
 		const gameName = String(name).trim();
 		const gameIdRows = await pool.query('SELECT app.get_or_create_game($1) AS game_id', [gameName]);
 		const gameId = gameIdRows.rows[0].game_id;
+		const userId = await getUserIdFromRequest(req);
+		const searchRows = await pool.query('SELECT app.log_game_search($1, $2, $3, $4) AS search_id', [
+			gameName,
+			userId,
+			req.ip,
+			req.get('user-agent') || null,
+		]);
+		const searchId = searchRows.rows[0]?.search_id || null;
 
 		const gameRows = await pool.query('SELECT id, name, created_at FROM app.games WHERE id = $1', [gameId]);
 		const game = gameRows.rows[0];
@@ -184,7 +248,6 @@ app.post('/api/games/resolve', async (req, res, next) => {
 
 		let authenticated = false;
 		let myReview = null;
-		const userId = await getUserIdFromRequest(req);
 		if (userId) {
 			authenticated = true;
 			const my = await pool.query(
@@ -194,7 +257,51 @@ app.post('/api/games/resolve', async (req, res, next) => {
 			myReview = my.rows[0] || null;
 		}
 
-		return res.json({ game, reviews: reviewsRows.rows, authenticated, myReview });
+		return res.json({
+			game,
+			reviews: reviewsRows.rows,
+			authenticated,
+			myReview,
+			search: {
+				search_id: searchId,
+				searched_at: new Date().toISOString(),
+				searched_by: userId || null,
+			},
+		});
+	} catch (err) {
+		return next(err);
+	}
+});
+
+app.get('/api/games/thread', async (req, res, next) => {
+	try {
+		const gameName = sanitizeText(req.query?.name, 120);
+		if (!gameName) return res.status(400).json({ error: 'game_name_required' });
+
+		const gameRows = await pool.query('SELECT id, name, created_at FROM app.games WHERE name = $1', [gameName]);
+		const game = gameRows.rows[0];
+		if (!game) {
+			return res.status(404).json({ error: 'game_not_found' });
+		}
+
+		const reviewRows = await pool.query('SELECT * FROM app.list_reviews($1, 50)', [game.id]);
+		const reviews = reviewRows.rows;
+
+		const withComments = await Promise.all(
+			reviews.map(async (review) => {
+				const comments = await pool.query('SELECT * FROM app.list_review_comments($1, 100)', [review.review_id]);
+				return {
+					...review,
+					comments: comments.rows,
+				};
+			})
+		);
+
+		return res.json({
+			game,
+			reviews: withComments,
+			thread_generated_at: new Date().toISOString(),
+		});
 	} catch (err) {
 		return next(err);
 	}
@@ -202,7 +309,10 @@ app.post('/api/games/resolve', async (req, res, next) => {
 
 app.post('/api/reviews', requireAuth, async (req, res, next) => {
 	try {
-		const { game_id, rating, title, body } = req.body || {};
+		const game_id = String(req.body?.game_id || '').trim();
+		const rating = Number(req.body?.rating);
+		const title = sanitizeText(req.body?.title, MAX_REVIEW_TITLE);
+		const body = sanitizeText(req.body?.body, MAX_REVIEW_BODY);
 		if (!game_id) return res.status(400).json({ error: 'game_id_required' });
 		const r = Number(rating);
 		if (!Number.isInteger(r) || r < 1 || r > 10) return res.status(400).json({ error: 'rating_must_be_1_to_10' });
@@ -222,6 +332,29 @@ app.post('/api/reviews', requireAuth, async (req, res, next) => {
 	}
 });
 
+app.post('/api/reviews/:reviewId/comments', requireAuth, async (req, res, next) => {
+	try {
+		const reviewId = parseReviewId(req.params.reviewId);
+		if (!reviewId) return res.status(400).json({ error: 'invalid_review_id' });
+
+		const body = sanitizeText(req.body?.body, MAX_COMMENT_BODY);
+		if (!body) return res.status(400).json({ error: 'comment_body_required' });
+
+		const reviewExists = await pool.query('SELECT id FROM app.reviews WHERE id = $1', [reviewId]);
+		if (!reviewExists.rows[0]) return res.status(404).json({ error: 'review_not_found' });
+
+		const inserted = await pool.query('SELECT app.add_review_comment($1, $2, $3) AS comment_id', [
+			req.userId,
+			reviewId,
+			body,
+		]);
+
+		return res.status(201).json({ comment_id: inserted.rows[0]?.comment_id || null });
+	} catch (err) {
+		return next(err);
+	}
+});
+
 app.get('/api/crawler/youtube', async (req, res, next) => {
 	try {
 		const apiKey = readEnvValue('SERPAPI_KEY');
@@ -230,10 +363,12 @@ app.get('/api/crawler/youtube', async (req, res, next) => {
 		const q = String(req.query.q || '').trim();
 		if (!q) return res.status(400).json({ error: 'q_required' });
 
-		const searchQuery = `${q} user reviews`;
+		const searchQuery = `${q} game review gameplay opinion`;
 		const json = await getJson({
 			engine: 'youtube',
 			search_query: searchQuery,
+			hl: 'en',
+			gl: 'us',
 			api_key: apiKey,
 		});
 
@@ -246,7 +381,29 @@ app.get('/api/crawler/youtube', async (req, res, next) => {
 			views: v?.views || null,
 			published_date: v?.published_date || null,
 			thumbnail: v?.thumbnail?.static || v?.thumbnail || null,
+			extracted_by: 'serpapi',
+			position: v?.position || null,
 		}));
+
+		try {
+			const userId = await getUserIdFromRequest(req);
+			const searchRows = await pool.query('SELECT app.log_game_search($1, $2, $3, $4) AS search_id', [
+				q,
+				userId,
+				req.ip,
+				req.get('user-agent') || null,
+			]);
+			const searchId = searchRows.rows[0]?.search_id;
+			if (searchId) {
+				await pool.query('SELECT app.store_video_results($1, $2, $3::jsonb) AS stored_count', [
+					searchId,
+					'serpapi',
+					JSON.stringify(trimmed),
+				]);
+			}
+		} catch {
+			// Crawler persistence must not block user-facing responses.
+		}
 
 		return res.json({ query: searchQuery, videos: trimmed });
 	} catch (err) {

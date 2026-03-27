@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content="Single-game review thread for project1." />
+		<title>project1 | Game Thread</title>
+		<link rel="stylesheet" href="../css/style.css" />
+		<style>
+			.thread-shell {
+				border-radius: 24px;
+				border: 1px solid rgba(255, 255, 255, 0.14);
+				background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+				padding: 16px;
+			}
+
+			.thread-search {
+				display: grid;
+				grid-template-columns: 1fr auto;
+				gap: 10px;
+				margin-top: 12px;
+			}
+
+			.thread-search input {
+				width: 100%;
+				padding: 12px;
+				border-radius: 12px;
+				border: 1px solid var(--line);
+				background: rgba(255, 255, 255, 0.06);
+				color: var(--text);
+			}
+
+			.thread-list {
+				display: grid;
+				gap: 12px;
+				margin-top: 14px;
+			}
+
+			.post {
+				border: 1px solid var(--line);
+				border-radius: 14px;
+				padding: 12px;
+				background: rgba(255, 255, 255, 0.04);
+			}
+
+			.post-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 10px;
+				margin-bottom: 8px;
+			}
+
+			.star {
+				display: inline-block;
+				font-size: 13px;
+				line-height: 1;
+				color: transparent;
+				-webkit-text-stroke: 1px #000;
+			}
+
+			.star.is-on {
+				color: #ffd84d;
+				-webkit-text-stroke: 1px #111;
+			}
+
+			.comment-list {
+				display: grid;
+				gap: 8px;
+				margin-top: 10px;
+				padding-top: 10px;
+				border-top: 1px dashed rgba(255, 255, 255, 0.18);
+			}
+
+			.comment {
+				margin-left: 14px;
+				padding: 8px 10px;
+				border-left: 2px solid rgba(0, 214, 255, 0.4);
+				border-radius: 6px;
+				background: rgba(255, 255, 255, 0.03);
+			}
+
+			.comment small {
+				display: block;
+				margin-top: 4px;
+				color: var(--muted);
+			}
+
+			.comment-form {
+				display: grid;
+				grid-template-columns: 1fr auto;
+				gap: 8px;
+				margin-top: 8px;
+			}
+
+			.comment-form input {
+				padding: 9px;
+				border-radius: 10px;
+				border: 1px solid var(--line);
+				background: rgba(255, 255, 255, 0.05);
+				color: var(--text);
+			}
+
+			.empty {
+				margin-top: 12px;
+				padding: 12px;
+				border: 1px dashed var(--line);
+				border-radius: 12px;
+				color: var(--muted);
+			}
+
+			@media (max-width: 740px) {
+				.thread-search,
+				.comment-form {
+					grid-template-columns: 1fr;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<a class="skip-link" href="#content">Skip to content</a>
+		<header>
+			<div class="container">
+				<div class="nav" aria-label="Primary navigation">
+					<a class="brand" href="./index.html" aria-label="Project1 home">
+						<div class="logo" aria-hidden="true"></div>
+						<div>
+							<strong>project1</strong>
+							<span>Video game reviews</span>
+						</div>
+					</a>
+					<nav class="nav-links" aria-label="Page links">
+						<a href="./index.html">Home</a>
+						<a href="./dashboard.html">Dashboard</a>
+						<a href="./about.html">About</a>
+						<a href="./login.html">Login</a>
+					</nav>
+					<a id="authLink" class="btn btn-ghost" href="./login.html">Sign in</a>
+				</div>
+			</div>
+		</header>
+
+		<main id="content">
+			<div class="container">
+				<section class="thread-shell">
+					<div class="eyebrow">Thread view • Reddit style</div>
+					<h1 id="threadTitle">Game review thread</h1>
+					<p class="sub">A focused page for one searched game with review posts and comment replies.</p>
+
+					<form id="threadSearch" class="thread-search">
+						<input id="threadInput" type="text" placeholder="Search and open a game thread" autocomplete="off" />
+						<button class="btn btn-primary" type="submit">Open thread</button>
+					</form>
+
+					<div id="threadList" class="thread-list"></div>
+				</section>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<div class="foot">
+					<div>© <span id="year"></span> project1</div>
+					<div>Per-game review thread</div>
+				</div>
+			</div>
+		</footer>
+
+		<script>
+			(function () {
+				document.getElementById('year').textContent = String(new Date().getFullYear());
+				const authLink = document.getElementById('authLink');
+				const threadSearch = document.getElementById('threadSearch');
+				const threadInput = document.getElementById('threadInput');
+				const threadList = document.getElementById('threadList');
+				const threadTitle = document.getElementById('threadTitle');
+
+				let session = { authenticated: false };
+				let currentGame = '';
+
+				init();
+
+				async function init() {
+					await refreshSession();
+					updateAuthLink();
+					const gameFromUrl = new URLSearchParams(window.location.search).get('game');
+					if (gameFromUrl) {
+						threadInput.value = gameFromUrl;
+						loadThread(gameFromUrl);
+					}
+
+					threadSearch.addEventListener('submit', (e) => {
+						e.preventDefault();
+						const game = String(threadInput.value || '').trim();
+						if (!game) return;
+						loadThread(game);
+					});
+				}
+
+				async function refreshSession() {
+					try {
+						const res = await fetch('/api/me', { cache: 'no-store' });
+						session = await res.json();
+					} catch {
+						session = { authenticated: false };
+					}
+				}
+
+				function updateAuthLink() {
+					if (session?.authenticated) {
+						authLink.textContent = 'Account';
+						authLink.href = './login.html';
+						return;
+					}
+					authLink.textContent = 'Sign in';
+					authLink.href = './login.html';
+				}
+
+				async function loadThread(gameName) {
+					currentGame = String(gameName || '').trim();
+					if (!currentGame) return;
+					threadTitle.textContent = currentGame + ' thread';
+					threadList.innerHTML = '<div class="empty">Loading thread...</div>';
+					history.replaceState(null, '', './thread.html?game=' + encodeURIComponent(currentGame));
+
+					try {
+						const res = await fetch('/api/games/thread?name=' + encodeURIComponent(currentGame), { cache: 'no-store' });
+						const data = await res.json().catch(() => ({}));
+						if (!res.ok) {
+							threadList.innerHTML = '<div class="empty">' + escapeHtml(String(data?.error || 'unable_to_load_thread')) + '</div>';
+							return;
+						}
+						renderThread(data);
+					} catch {
+						threadList.innerHTML = '<div class="empty">Unable to load thread right now.</div>';
+					}
+				}
+
+				function renderThread(data) {
+					const reviews = Array.isArray(data?.reviews) ? data.reviews : [];
+					if (!reviews.length) {
+						threadList.innerHTML = '<div class="empty">No posts for this game yet.</div>';
+						return;
+					}
+
+					threadList.innerHTML = reviews.map((review) => {
+						const rating = normalizeRating(review?.rating);
+						const comments = Array.isArray(review?.comments) ? review.comments : [];
+
+						return (
+							'<article class="post" data-review-id="' + escapeHtml(String(review.review_id || '')) + '">' +
+							'<div class="post-head">' +
+							'<strong>' + escapeHtml(String(review?.title || 'Review')) + '</strong>' +
+							'<div>' + renderStars(rating) + '</div>' +
+							'</div>' +
+							'<div>' + escapeHtml(String(review?.body || '')) + '</div>' +
+							'<small style="color: var(--muted);">by ' + escapeHtml(String(review?.author || 'user')) + ' • ' + formatDateTime(review?.created_at) + '</small>' +
+							'<div class="comment-list">' +
+							(comments.length
+								? comments.map((comment) => (
+									'<div class="comment">' +
+									escapeHtml(String(comment?.body || '')) +
+									'<small>' + escapeHtml(String(comment?.author || 'user')) + ' • ' + formatDateTime(comment?.created_at) + '</small>' +
+									'</div>'
+								)).join('')
+								: '<div class="comment">No comments yet.</div>') +
+							'</div>' +
+							renderCommentForm(review.review_id) +
+							'</article>'
+						);
+					}).join('');
+
+					wireCommentForms();
+				}
+
+				function renderCommentForm(reviewId) {
+					if (!session?.authenticated) {
+						return '<div class="empty" style="margin-top:8px;">Sign in to reply.</div>';
+					}
+					return (
+						'<form class="comment-form" data-review-id="' + escapeHtml(String(reviewId || '')) + '">' +
+						'<input type="text" maxlength="1000" placeholder="Write a comment reply" required />' +
+						'<button class="btn" type="submit">Reply</button>' +
+						'</form>'
+					);
+				}
+
+				function wireCommentForms() {
+					const forms = Array.from(document.querySelectorAll('.comment-form'));
+					forms.forEach((form) => {
+						form.addEventListener('submit', async (e) => {
+							e.preventDefault();
+							const reviewId = String(form.dataset.reviewId || '');
+							const input = form.querySelector('input');
+							const body = String(input?.value || '').trim();
+							if (!reviewId || !body) return;
+
+							const btn = form.querySelector('button');
+							if (btn) btn.disabled = true;
+							try {
+								const res = await fetch('/api/reviews/' + encodeURIComponent(reviewId) + '/comments', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({ body }),
+								});
+								if (!res.ok) {
+									const data = await res.json().catch(() => ({}));
+									throw new Error(String(data?.error || 'failed_to_reply'));
+								}
+								if (input) input.value = '';
+								await loadThread(currentGame);
+							} catch (err) {
+								alert(String(err.message || err).replace(/_/g, ' '));
+							} finally {
+								if (btn) btn.disabled = false;
+							}
+						});
+					});
+				}
+
+				function normalizeRating(raw) {
+					const rating = Number(raw);
+					if (!Number.isFinite(rating)) return 1;
+					return Math.max(1, Math.min(10, Math.round(rating)));
+				}
+
+				function renderStars(ratingOutOf10) {
+					const full = Math.max(1, Math.min(5, Math.round(ratingOutOf10 / 2)));
+					let html = '';
+					for (let i = 1; i <= 5; i += 1) {
+						html += '<span class="star ' + (i <= full ? 'is-on' : '') + '">★</span>';
+					}
+					return html + '<span style="font-size:12px; color: var(--muted); margin-left: 6px;">' + ratingOutOf10 + '/10</span>';
+				}
+
+				function formatDateTime(value) {
+					if (!value) return '';
+					const date = new Date(value);
+					if (Number.isNaN(date.getTime())) return '';
+					return date.toLocaleString('en-US', {
+						year: 'numeric',
+						month: 'short',
+						day: 'numeric',
+						hour: 'numeric',
+						minute: '2-digit',
+					});
+				}
+
+				function escapeHtml(text) {
+					return String(text)
+						.replace(/&/g, '&amp;')
+						.replace(/</g, '&lt;')
+						.replace(/>/g, '&gt;')
+						.replace(/"/g, '&quot;')
+						.replace(/'/g, '&#39;');
+				}
+			})();
+		</script>
+	</body>
+</html>

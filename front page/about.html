@@ -3,14 +3,47 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="description" content="About project-1: MVP scope and roadmap." />
+		<meta name="description" content="About project1 architecture, roadmap, security, and data flow." />
 		<title>project1 | About</title>
 		<link rel="stylesheet" href="../css/style.css" />
-	</head>
+		<style>
+			.info-grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 12px;
+			}
 
+			.info-card {
+				border-radius: var(--radius);
+				border: 1px solid rgba(255, 255, 255, 0.14);
+				background: var(--card);
+				padding: 14px;
+			}
+
+			.info-card h2 {
+				margin: 0;
+				font-size: 16px;
+			}
+
+			.info-card ul,
+			.info-card ol {
+				margin: 10px 0 0;
+				padding-left: 18px;
+				font-size: 13px;
+				color: var(--muted);
+				display: grid;
+				gap: 6px;
+			}
+
+			@media (max-width: 860px) {
+				.info-grid {
+					grid-template-columns: 1fr;
+				}
+			}
+		</style>
+	</head>
 	<body>
 		<a class="skip-link" href="#content">Skip to content</a>
-
 		<header>
 			<div class="container">
 				<div class="nav" aria-label="Primary navigation">
@@ -21,59 +54,68 @@
 							<span>Video game reviews</span>
 						</div>
 					</a>
-
 					<nav class="nav-links" aria-label="Page links">
 						<a href="./index.html">Home</a>
-						<a href="#roadmap">Roadmap</a>
+						<a href="./dashboard.html">Dashboard</a>
+						<a href="./thread.html">Thread</a>
+						<a href="./login.html">Login</a>
 					</nav>
-
-					<a class="btn btn-ghost" href="./registration.html">Write a review</a>
+					<a class="btn btn-ghost" href="./registration.html">Sign up</a>
 				</div>
 			</div>
 		</header>
 
 		<main id="content">
 			<div class="container">
-				<section class="hero" aria-label="About project">
+				<section class="hero" aria-label="About project1">
 					<div class="hero-inner">
-						<div class="eyebrow">About • MVP • Roadmap</div>
-						<h1>project-1</h1>
+						<div class="eyebrow">About • Stack • Security • Data flow</div>
+						<h1>How this website is made</h1>
 						<p class="sub">
-							We’re building a simple game review experience: search a game, view community reviews, pull YouTube review
-							videos related to that game, and let users write and publish their own review.
+							project1 is a fullstack game review platform: backend serves pages and APIs, PostgreSQL stores users/reviews/thread data, and SerpAPI enriches searches with YouTube review media.
 						</p>
 
-						<div class="about-grid" aria-label="Project details">
-							<section class="about-card" aria-label="MVP scope">
-								<h2>MVP (what we’re building first)</h2>
-								<ul class="about-list">
-									<li>Search a game and resolve it to a single result.</li>
-									<li>Show community reviews for that game.</li>
-									<li>Pull YouTube review videos for the searched game and show links.</li>
-									<li>Allow a signed-in user to write and post a review for that game.</li>
+						<div class="info-grid">
+							<section class="info-card">
+								<h2>Architecture</h2>
+								<ul>
+									<li>Frontend: vanilla HTML, CSS, and JavaScript.</li>
+									<li>Backend: Node.js + Express with cookie-based session auth.</li>
+									<li>Database: PostgreSQL schema in data/supabase.sql and data/supabase-reviews.sql.</li>
+									<li>Crawler: SerpAPI YouTube engine, with stored metadata for diagnostics.</li>
 								</ul>
 							</section>
 
-							<aside class="team-card" aria-label="Project-1 team">
-								<div class="team-card-title">Team</div>
-								<ul class="team-card-list">
+							<section class="info-card">
+								<h2>Security and data handling</h2>
+								<ul>
+									<li>Passwords are hashed in Postgres with pgcrypto crypt() and never returned by APIs.</li>
+									<li>Session tokens are random, stored as SHA-256 hashes, and set in HttpOnly cookies.</li>
+									<li>Input is normalized and length-bounded before writes.</li>
+									<li>Review authors are masked in response payloads.</li>
+								</ul>
+							</section>
+
+							<section class="info-card">
+								<h2>Feature map</h2>
+								<ol>
+									<li>Search game in Home or Dashboard.</li>
+									<li>Read community reviews and star ratings.</li>
+									<li>Watch fetched YouTube review videos.</li>
+									<li>Post a review and reply inside game thread comments.</li>
+								</ol>
+							</section>
+
+							<section class="info-card">
+								<h2>Team and repo</h2>
+								<ul>
 									<li>Benjamin Oliveira</li>
 									<li>Scott Palma</li>
 									<li>Darius Pal</li>
+									<li>GitHub owner: Cyferion-technologies / project1</li>
 								</ul>
-							</aside>
+							</section>
 						</div>
-
-						<section id="roadmap" class="about-card" aria-label="Roadmap">
-							<h2>Current roadmap</h2>
-							<ol class="about-list">
-								<li>Wire up the game search so users can reliably find the intended title.</li>
-								<li>Show stored reviews and enable posting new reviews (auth + validation).</li>
-								<li>AI crawler: query YouTube review videos for the searched game and return top matches.</li>
-								<li>Display those videos as clickable links/cards near the game results.</li>
-								<li>Connect the flow: after watching a video, the user can write a review for the same game.</li>
-							</ol>
-						</section>
 					</div>
 				</section>
 			</div>
@@ -83,15 +125,14 @@
 			<div class="container">
 				<div class="foot">
 					<div>© <span id="year"></span> project1</div>
-					<div>About page • MVP + roadmap</div>
+					<div>About page • architecture and operations</div>
 				</div>
 			</div>
 		</footer>
 
 		<script>
 			(function () {
-				const year = document.getElementById('year');
-				year.textContent = String(new Date().getFullYear());
+				document.getElementById('year').textContent = String(new Date().getFullYear());
 			})();
 		</script>
 	</body>

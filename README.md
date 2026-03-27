@@ -1,6 +1,21 @@
 # project1
 
-Software Idea: A video game review website where entering a game name will pull up reviews of that game as well as allow user's themselves to write a review for that specific game.
+Software Idea: A video game review website where entering a game name pulls community reviews, YouTube review videos, and a dedicated game thread page where users can discuss and comment.
+
+## What Was Improved
+
+- Split authentication into separate pages:
+  - `front page/login.html`
+  - `front page/registration.html` (sign-up)
+- Rebuilt `front page/dashboard.html` with a fixed, stable workspace and richer metadata:
+  - game created date
+  - user search time
+  - review count
+  - improved video cards and star ratings
+- Added dedicated game thread view: `front page/thread.html`.
+- Added repository metadata endpoint and UI display for teachers/reviewers.
+- Added comment thread support and crawler persistence schema in `data/supabase-reviews.sql`.
+- Strengthened password hashing cost in `data/supabase.sql`.
 
 ## Run (backend wired to frontend)
 
@@ -30,6 +45,14 @@ npm start
 
 <http://localhost:3001/>
 
+Useful pages:
+
+- Home: <http://localhost:3001/index.html>
+- Dashboard: <http://localhost:3001/dashboard.html>
+- Thread: <http://localhost:3001/thread.html>
+- Login: <http://localhost:3001/login.html>
+- Sign up: <http://localhost:3001/registration.html>
+
 1. Initialize database schema and helper tables:
 
 ```bash
@@ -57,13 +80,25 @@ Notes:
 - `backend/.env` currently supports two modes:
   - Supabase via `DATABASE_URL` (current verified repo setup).
   - Local Postgres by removing `DATABASE_URL` and setting `PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` / `PGDATABASE`.
+- Additional pool/runtime tuning env vars are supported:
+  - `PGPOOL_MAX`
+  - `PG_IDLE_TIMEOUT_MS`
+  - `PG_CONNECT_TIMEOUT_MS`
 - Supabase Cloud may reject connections unless your current IP is added to the project's network allow-list.
 - If using Supabase, set `PGSSLMODE=require` (or use a `DATABASE_URL` that already enforces SSL).
 - If using local Postgres, set `PGSSLMODE=disable`.
 - YouTube crawler requires `SERPAPI_KEY` in `backend/.env` (without quotes).
 - If the key is invalid, the API now responds with `serpapi_invalid_key` and the server keeps running.
 - If you get `EADDRINUSE`, start on a different port (example in PowerShell: `$env:PORT=3002; npm start`).
-- `data/supabase.sql` contains every schema object required by the live auth/game/review routes. `data/supabase-reviews.sql` only adds the crawler helper table and is not required for the current review API.
+- Full schema docs are in `data/schema-documentation.md`.
+
+## Database Security And Reliability Notes
+
+- Password hashes are generated with `crypt(..., gen_salt('bf', 12))`.
+- Session tokens are random and only stored hashed in the database.
+- Cookies are `HttpOnly` and `SameSite=Strict` to reduce cross-site risks.
+- API responses include masked author identity for public review/comment reads.
+- Input is normalized and length-limited before write operations.
 
 ## Manual end-to-end check after DB access is restored
 
@@ -72,7 +107,8 @@ Notes:
 3. Open <http://localhost:3001/>.
 4. Register a new account and log in.
 5. Search for a game, post a review, refresh the search, and confirm the review persists.
-6. Confirm `/api/crawler/youtube?q=<game>` returns either video data, `serpapi_not_configured`, or `serpapi_invalid_key`.
+6. Open `thread.html?game=<name>` and verify comment replies can be posted when signed in.
+7. Confirm `/api/crawler/youtube?q=<game>` returns either video data, `serpapi_not_configured`, or `serpapi_invalid_key`.
 
 ## User Roles
 
