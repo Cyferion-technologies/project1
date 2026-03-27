@@ -16,6 +16,7 @@ Software Idea: A video game review website where entering a game name pulls comm
 - Added repository metadata endpoint and UI display for teachers/reviewers.
 - Added comment thread support and crawler persistence schema in `data/supabase-reviews.sql`.
 - Strengthened password hashing cost in `data/supabase.sql`.
+- Centralized crawler key/source handling in `serpAPI/` with key rotation support via `backend/lib/serpapi-service.js`.
 
 ## Run (backend wired to frontend)
 
@@ -88,6 +89,9 @@ Notes:
 - If using Supabase, set `PGSSLMODE=require` (or use a `DATABASE_URL` that already enforces SSL).
 - If using local Postgres, set `PGSSLMODE=disable`.
 - YouTube crawler requires `SERPAPI_KEY` in `backend/.env` (without quotes).
+- Optional multi-key fallback:
+  - set `SERPAPI_KEYS=key1,key2,...` in env, or
+  - create `serpAPI/keys.json` from `serpAPI/keys.json.example`.
 - If the key is invalid, the API now responds with `serpapi_invalid_key` and the server keeps running.
 - If you get `EADDRINUSE`, start on a different port (example in PowerShell: `$env:PORT=3002; npm start`).
 - Full schema docs are in `data/schema-documentation.md`.

@@ -16,18 +16,43 @@
 
 			.thread-search {
 				display: grid;
-				grid-template-columns: 1fr auto;
+				grid-template-columns: 1fr 180px auto;
 				gap: 10px;
 				margin-top: 12px;
 			}
 
-			.thread-search input {
+			.thread-search input,
+			.thread-search select {
 				width: 100%;
 				padding: 12px;
 				border-radius: 12px;
 				border: 1px solid var(--line);
 				background: rgba(255, 255, 255, 0.06);
 				color: var(--text);
+			}
+
+			.thread-videos {
+				margin-top: 14px;
+				display: grid;
+				gap: 8px;
+			}
+
+			.video-item {
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 9px;
+				background: rgba(255, 255, 255, 0.04);
+			}
+
+			.video-item a {
+				font-weight: 700;
+				font-size: 13px;
+			}
+
+			.video-item small {
+				display: block;
+				margin-top: 4px;
+				color: var(--muted);
 			}
 
 			.thread-list {
@@ -149,8 +174,17 @@
 
 					<form id="threadSearch" class="thread-search">
 						<input id="threadInput" type="text" placeholder="Search and open a game thread" autocomplete="off" />
+						<select id="threadIntent" aria-label="Thread search intent">
+							<option value="reviews">Player reviews</option>
+							<option value="gameplay">Gameplay</option>
+							<option value="critic">Critic analysis</option>
+							<option value="community">Community reaction</option>
+							<option value="comparison">Comparison</option>
+						</select>
 						<button class="btn btn-primary" type="submit">Open thread</button>
 					</form>
+
+					<div id="threadVideos" class="thread-videos"></div>
 
 					<div id="threadList" class="thread-list"></div>
 				</section>
@@ -172,6 +206,8 @@
 				const authLink = document.getElementById('authLink');
 				const threadSearch = document.getElementById('threadSearch');
 				const threadInput = document.getElementById('threadInput');
+				const threadIntent = document.getElementById('threadIntent');
+				const threadVideos = document.getElementById('threadVideos');
 				const threadList = document.getElementById('threadList');
 				const threadTitle = document.getElementById('threadTitle');
 
@@ -184,16 +220,18 @@
 					await refreshSession();
 					updateAuthLink();
 					const gameFromUrl = new URLSearchParams(window.location.search).get('game');
+					const intentFromUrl = String(new URLSearchParams(window.location.search).get('intent') || 'reviews');
+					threadIntent.value = intentFromUrl;
 					if (gameFromUrl) {
 						threadInput.value = gameFromUrl;
-						loadThread(gameFromUrl);
+						loadThread(gameFromUrl, intentFromUrl);
 					}
 
 					threadSearch.addEventListener('submit', (e) => {
 						e.preventDefault();
 						const game = String(threadInput.value || '').trim();
 						if (!game) return;
-						loadThread(game);
+						loadThread(game, String(threadIntent.value || 'reviews'));
 					});
 				}
 
@@ -216,14 +254,16 @@
 					authLink.href = './login.html';
 				}
 
-				async function loadThread(gameName) {
+				async function loadThread(gameName, intent) {
 					currentGame = String(gameName || '').trim();
 					if (!currentGame) return;
 					threadTitle.textContent = currentGame + ' thread';
 					threadList.innerHTML = '<div class="empty">Loading thread...</div>';
-					history.replaceState(null, '', './thread.html?game=' + encodeURIComponent(currentGame));
+					threadVideos.innerHTML = '<div class="empty">Loading related videos...</div>';
+					history.replaceState(null, '', './thread.html?game=' + encodeURIComponent(currentGame) + '&intent=' + encodeURIComponent(intent || 'reviews'));
 
 					try {
+						loadThreadVideos(currentGame, intent);
 						const res = await fetch('/api/games/thread?name=' + encodeURIComponent(currentGame), { cache: 'no-store' });
 						const data = await res.json().catch(() => ({}));
 						if (!res.ok) {
@@ -233,6 +273,39 @@
 						renderThread(data);
 					} catch {
 						threadList.innerHTML = '<div class="empty">Unable to load thread right now.</div>';
+					}
+				}
+
+				async function loadThreadVideos(gameName, intent) {
+					try {
+						const res = await fetch(
+							'/api/crawler/youtube?q=' + encodeURIComponent(gameName) + '&intent=' + encodeURIComponent(intent || 'reviews'),
+							{ cache: 'no-store' }
+						);
+						const data = await res.json().catch(() => ({}));
+						if (!res.ok) {
+							threadVideos.innerHTML = '<div class="empty">' + escapeHtml(String(data?.error || 'crawler_unavailable')) + '</div>';
+							return;
+						}
+
+						const videos = Array.isArray(data?.videos) ? data.videos.slice(0, 5) : [];
+						if (!videos.length) {
+							threadVideos.innerHTML = '<div class="empty">No related videos for this intent.</div>';
+							return;
+						}
+
+						threadVideos.innerHTML =
+							'<div class="empty">Intent: ' + escapeHtml(String(data?.intent || intent || 'reviews')) + ' • Query: ' + escapeHtml(String(data?.query || gameName)) + '</div>' +
+							videos
+								.map((video) => {
+									const title = escapeHtml(String(video?.title || 'Video'));
+									const link = safeUrl(video?.link);
+									const meta = [video?.channel, video?.published_date, video?.views].filter(Boolean).join(' • ');
+									return '<div class="video-item"><a href="' + escapeHtml(link) + '" target="_blank" rel="noreferrer">' + title + '</a><small>' + escapeHtml(meta || 'YouTube') + '</small></div>';
+								})
+								.join('');
+					} catch {
+						threadVideos.innerHTML = '<div class="empty">Unable to load related videos.</div>';
 					}
 				}
 
@@ -308,7 +381,7 @@
 									throw new Error(String(data?.error || 'failed_to_reply'));
 								}
 								if (input) input.value = '';
-								await loadThread(currentGame);
+								await loadThread(currentGame, String(threadIntent.value || 'reviews'));
 							} catch (err) {
 								alert(String(err.message || err).replace(/_/g, ' '));
 							} finally {
@@ -353,6 +426,18 @@
 						.replace(/>/g, '&gt;')
 						.replace(/"/g, '&quot;')
 						.replace(/'/g, '&#39;');
+				}
+
+				function safeUrl(url) {
+					const raw = String(url || '').trim();
+					if (!raw) return '#';
+					try {
+						const parsed = new URL(raw, window.location.origin);
+						if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+					} catch {
+						// noop
+					}
+					return '#';
 				}
 			})();
 		</script>

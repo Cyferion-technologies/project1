@@ -40,7 +40,7 @@
 
 			.dashboard-search {
 				display: grid;
-				grid-template-columns: 1fr auto;
+				grid-template-columns: 1fr 180px auto;
 				gap: 10px;
 				padding: 12px;
 				border-radius: var(--radius);
@@ -49,6 +49,15 @@
 			}
 
 			.dashboard-search input {
+				width: 100%;
+				padding: 12px;
+				border-radius: 12px;
+				border: 1px solid var(--line);
+				background: rgba(255, 255, 255, 0.06);
+				color: var(--text);
+			}
+
+			.dashboard-search select {
 				width: 100%;
 				padding: 12px;
 				border-radius: 12px;
@@ -348,6 +357,13 @@
 					<div class="dashboard-shell">
 						<form id="searchForm" class="dashboard-search" aria-label="Search game">
 							<input id="searchInput" type="text" placeholder="Search a game title (example: Elden Ring)" autocomplete="off" />
+							<select id="searchIntent" aria-label="Search intent">
+								<option value="reviews">Player reviews</option>
+								<option value="gameplay">Gameplay</option>
+								<option value="critic">Critic analysis</option>
+								<option value="community">Community reaction</option>
+								<option value="comparison">Comparison</option>
+							</select>
 							<button class="btn btn-primary" type="submit">Search</button>
 						</form>
 
@@ -356,6 +372,10 @@
 							<div class="meta-pill"><span>Game added</span><strong id="metaGameCreated">-</strong></div>
 							<div class="meta-pill"><span>Search time</span><strong id="metaSearchTime">-</strong></div>
 							<div class="meta-pill"><span>Total reviews</span><strong id="metaReviewCount">0</strong></div>
+							<div class="meta-pill"><span>Crawler intent</span><strong id="metaIntent">reviews</strong></div>
+							<div class="meta-pill"><span>Search query used</span><strong id="metaCrawlerQuery">-</strong></div>
+							<div class="meta-pill"><span>Crawler source</span><strong id="metaCrawlerSource">-</strong></div>
+							<div class="meta-pill"><span>Enriched videos</span><strong id="metaEnrichedCount">0</strong></div>
 						</div>
 
 						<div class="workspace">
@@ -411,12 +431,17 @@
 				const navAuthLink = document.getElementById('navAuthLink');
 				const searchForm = document.getElementById('searchForm');
 				const searchInput = document.getElementById('searchInput');
+				const searchIntent = document.getElementById('searchIntent');
 				const threadLink = document.getElementById('threadLink');
 
 				const metaGame = document.getElementById('metaGame');
 				const metaGameCreated = document.getElementById('metaGameCreated');
 				const metaSearchTime = document.getElementById('metaSearchTime');
 				const metaReviewCount = document.getElementById('metaReviewCount');
+				const metaIntent = document.getElementById('metaIntent');
+				const metaCrawlerQuery = document.getElementById('metaCrawlerQuery');
+				const metaCrawlerSource = document.getElementById('metaCrawlerSource');
+				const metaEnrichedCount = document.getElementById('metaEnrichedCount');
 
 				const youtubeContainer = document.getElementById('youtubeContainer');
 				const reviewsContainer = document.getElementById('reviewsContainer');
@@ -459,13 +484,13 @@
 					e.preventDefault();
 					const game = String(searchInput.value || '').trim();
 					if (!game) return;
-					loadGameData(game);
+					loadGameData(game, String(searchIntent.value || 'reviews'));
 				}
 
-				async function loadGameData(gameName) {
+				async function loadGameData(gameName, intent) {
 					youtubeContainer.innerHTML = '<div class="empty">Loading videos...</div>';
 					reviewsContainer.innerHTML = '<div class="empty">Loading reviews...</div>';
-					threadLink.href = './thread.html?game=' + encodeURIComponent(gameName);
+					threadLink.href = './thread.html?game=' + encodeURIComponent(gameName) + '&intent=' + encodeURIComponent(intent || 'reviews');
 
 					try {
 						const gameRes = await fetch('/api/games/resolve', {
@@ -482,7 +507,7 @@
 						renderReviews(gameData.reviews || []);
 						renderReviewForm(gameData);
 
-						await loadYoutube(gameName);
+						await loadYoutube(gameName, intent);
 					} catch (err) {
 						youtubeContainer.innerHTML = '<div class="empty">' + escapeHtml(String(err.message || err)) + '</div>';
 						reviewsContainer.innerHTML = '<div class="empty">' + escapeHtml(String(err.message || err)) + '</div>';
@@ -498,11 +523,18 @@
 					metaReviewCount.textContent = String(Array.isArray(gameData?.reviews) ? gameData.reviews.length : 0);
 				}
 
-				async function loadYoutube(gameName) {
+				async function loadYoutube(gameName, intent) {
 					try {
-						const res = await fetch('/api/crawler/youtube?q=' + encodeURIComponent(gameName), { cache: 'no-store' });
+						const res = await fetch(
+							'/api/crawler/youtube?q=' + encodeURIComponent(gameName) + '&intent=' + encodeURIComponent(intent || 'reviews'),
+							{ cache: 'no-store' }
+						);
 						const data = await safeJson(res);
 						if (!res.ok) throw new Error(formatApiError(data, 'failed_to_load_videos'));
+						metaIntent.textContent = String(data?.intent || intent || 'reviews');
+						metaCrawlerQuery.textContent = String(data?.query || '-');
+						metaCrawlerSource.textContent = String(data?.meta?.crawler_source || 'serpAPI');
+						metaEnrichedCount.textContent = String(Number(data?.meta?.enriched_count || 0));
 						renderVideos(Array.isArray(data?.videos) ? data.videos : []);
 					} catch (err) {
 						youtubeContainer.innerHTML = '<div class="empty">' + escapeHtml(String(err.message || err)) + '</div>';
@@ -520,7 +552,15 @@
 						const link = safeUrl(video?.link);
 						const thumb = safeUrl(video?.thumbnail);
 						const channel = escapeHtml(String(video?.channel || 'YouTube'));
-						const meta = [video?.published_date, video?.duration, video?.views].filter(Boolean).join(' • ');
+						const detail = video?.detail || {};
+						const meta = [
+							video?.published_date,
+							video?.duration,
+							video?.views,
+							detail?.likes ? 'Likes: ' + detail.likes : null,
+							detail?.comment_count ? 'Comments: ' + detail.comment_count : null,
+							detail?.channel_subscribers ? 'Subs: ' + detail.channel_subscribers : null,
+						].filter(Boolean).join(' • ');
 						const thumbNode = thumb === '#'
 							? '<div style="height:120px; display:flex; align-items:center; justify-content:center; color: var(--muted);">No image</div>'
 							: '<img src="' + escapeHtml(thumb) + '" alt="' + title + '" loading="lazy" decoding="async" />';

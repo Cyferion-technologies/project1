@@ -2,13 +2,12 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const { getJson } = require('serpapi');
 const {
 	checkRequiredSchema,
 	createPool,
-	readEnvValue,
 	toDatabaseHttpResponse,
 } = require('./lib/db');
+const { fetchYoutubeVideos } = require('./lib/serpapi-service');
 
 const PORT = Number(process.env.PORT || 3001);
 const MAX_REVIEW_TITLE = 120;
@@ -357,33 +356,20 @@ app.post('/api/reviews/:reviewId/comments', requireAuth, async (req, res, next) 
 
 app.get('/api/crawler/youtube', async (req, res, next) => {
 	try {
-		const apiKey = readEnvValue('SERPAPI_KEY');
-		if (!apiKey) return res.status(501).json({ error: 'serpapi_not_configured' });
-
 		const q = String(req.query.q || '').trim();
 		if (!q) return res.status(400).json({ error: 'q_required' });
+		const intent = String(req.query.intent || 'reviews').trim();
+		const data = await fetchYoutubeVideos(q, intent, 8);
 
-		const searchQuery = `${q} game review gameplay opinion`;
-		const json = await getJson({
-			engine: 'youtube',
-			search_query: searchQuery,
-			hl: 'en',
-			gl: 'us',
-			api_key: apiKey,
-		});
-
-		const videos = Array.isArray(json?.video_results) ? json.video_results : [];
-		const trimmed = videos.slice(0, 6).map((v) => ({
-			title: v?.title || null,
-			link: v?.link || null,
-			channel: v?.channel?.name || v?.channel || null,
-			duration: v?.duration || null,
-			views: v?.views || null,
-			published_date: v?.published_date || null,
-			thumbnail: v?.thumbnail?.static || v?.thumbnail || null,
-			extracted_by: 'serpapi',
-			position: v?.position || null,
-		}));
+		if (data?.error === 'serpapi_not_configured') {
+			return res.status(501).json({ error: 'serpapi_not_configured', detail: data.detail });
+		}
+		if (data?.error === 'serpapi_invalid_key') {
+			return res.status(502).json({ error: 'serpapi_invalid_key', detail: data.detail });
+		}
+		if (data?.error) {
+			return res.status(502).json({ error: 'serpapi_failed', detail: data.detail });
+		}
 
 		try {
 			const userId = await getUserIdFromRequest(req);
@@ -398,21 +384,20 @@ app.get('/api/crawler/youtube', async (req, res, next) => {
 				await pool.query('SELECT app.store_video_results($1, $2, $3::jsonb) AS stored_count', [
 					searchId,
 					'serpapi',
-					JSON.stringify(trimmed),
+					JSON.stringify(data.videos || []),
 				]);
 			}
 		} catch {
 			// Crawler persistence must not block user-facing responses.
 		}
 
-		return res.json({ query: searchQuery, videos: trimmed });
+		return res.json({
+			query: data.query,
+			intent: data.intent,
+			videos: data.videos,
+			meta: data.meta,
+		});
 	} catch (err) {
-		if (typeof err === 'string' && err.toLowerCase().includes('invalid api key')) {
-			return res.status(502).json({ error: 'serpapi_invalid_key' });
-		}
-		if (typeof err?.message === 'string' && err.message.toLowerCase().includes('invalid api key')) {
-			return res.status(502).json({ error: 'serpapi_invalid_key' });
-		}
 		return next(err);
 	}
 });
