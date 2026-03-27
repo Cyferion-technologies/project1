@@ -1,15 +1,5 @@
 {
-  "name": "project1",
-  "private": true,
-  "scripts": {
-    "start": "cd backend && npm start",
-    "backend": "cd backend && npm start",
-    "backend:install": "cd backend && npm install",
-    "db:init": "cd backend && npm run db:init",
-    "db:check": "cd backend && npm run db:check",
-    "verify:runtime": "cd backend && npm run verify:runtime"
-  },
   "dependencies": {
-    "postgres": "^3.4.8"
+    "express": "^5.2.1"
   }
 }

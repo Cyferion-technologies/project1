@@ -1,0 +1,12 @@
+[
+	{"title": "Starlight Odyssey", "release_date": "2023-11-15", "price": 59.99, "rating": 8.7},
+	{"title": "Pixel Quest", "release_date": "2022-06-10", "price": 39.99, "rating": 7.9},
+	{"title": "Shadow Reign", "release_date": "2024-02-28", "price": 69.99, "rating": 9.1},
+	{"title": "Neon Drift", "release_date": "2021-09-05", "price": 29.99, "rating": 7.2},
+	{"title": "Echoes of Eternity", "release_date": "2025-01-20", "price": 64.99, "rating": 8.9},
+	{"title": "Frostbound", "release_date": "2023-03-12", "price": 49.99, "rating": 8.3},
+	{"title": "Solaris Run", "release_date": "2022-12-01", "price": 44.99, "rating": 7.8},
+	{"title": "Mythic Realms", "release_date": "2024-07-18", "price": 59.99, "rating": 9.0},
+	{"title": "Quantum Breakers", "release_date": "2021-11-30", "price": 34.99, "rating": 7.5},
+	{"title": "Ironclad Tactics", "release_date": "2025-05-09", "price": 54.99, "rating": 8.6}
+]
