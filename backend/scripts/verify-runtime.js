@@ -1,10 +1,14 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
+// Simple delay helper used during shutdown to give SIGTERM a short grace period
+// before escalating to SIGKILL for stubborn child processes.
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// HTTP helper that returns both status and raw body text so assertions can verify
+// route behavior and also print helpful diagnostics on failure.
 async function fetchText(url, options) {
 	const res = await fetch(url, options);
 	const text = await res.text();
@@ -14,6 +18,8 @@ async function fetchText(url, options) {
 	};
 }
 
+// Launches backend in a child process using `PORT=0` (ephemeral port) and parses
+// startup log output to detect which port the process actually bound to.
 async function startServer() {
 	return new Promise((resolve, reject) => {
 		const cwd = path.join(__dirname, '..');
@@ -62,6 +68,8 @@ async function startServer() {
 	});
 }
 
+// Best-effort shutdown for the spawned backend process: try SIGTERM first,
+// wait briefly, then force-kill if the process does not exit.
 async function stopServer(child) {
 	if (!child || child.killed) return;
 	child.kill('SIGTERM');
@@ -71,6 +79,8 @@ async function stopServer(child) {
 	}
 }
 
+// End-to-end runtime probe. Starts backend, exercises core endpoints, outputs
+// a machine-readable summary, and exits non-zero when expected checks fail.
 async function run() {
 	let started;
 

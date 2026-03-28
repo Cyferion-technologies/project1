@@ -5,6 +5,8 @@ const {
 	getDatabaseTarget,
 } = require('../lib/db');
 
+// Operational DB smoke test used by developers/CI to confirm the configured
+// target is reachable and has the full schema contract required by the API.
 async function run() {
 	const target = getDatabaseTarget();
 	const pool = createPool();

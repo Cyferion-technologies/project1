@@ -17,6 +17,8 @@ const MAX_COMMENT_BODY = 1000;
 const packageJsonPath = path.join(__dirname, '..', 'package.json');
 const backendPackageJsonPath = path.join(__dirname, 'package.json');
 
+// Shared process-wide DB pool. Keeping one pool per process avoids creating
+// a new connection per request and gives predictable connection reuse/limits.
 const pool = createPool();
 const app = express();
 
@@ -40,6 +42,8 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(frontDir, 'index.html'));
 });
 
+// Liveness/readiness endpoint used by local checks or deployment probes.
+// It validates both connectivity (SELECT 1) and that required app schema objects exist.
 app.get('/api/health', async (req, res) => {
 	try {
 		await pool.query('SELECT 1');
@@ -74,6 +78,8 @@ function isSecureRequest(req) {
 		.includes('https');
 }
 
+// Cookie policy for auth sessions. `secure` is computed per request so local HTTP
+// development still works while HTTPS deployments keep transport-only cookies.
 function getSessionCookieOptions(req) {
 	return {
 		httpOnly: true,
@@ -83,6 +89,8 @@ function getSessionCookieOptions(req) {
 	};
 }
 
+// Normalizes user input by collapsing whitespace, trimming edges, and clipping to
+// maximum length so downstream SQL functions get clean, bounded values.
 function sanitizeText(input, maxLength) {
 	if (typeof input !== 'string') return '';
 	const normalized = input.replace(/\s+/g, ' ').trim();
@@ -90,12 +98,16 @@ function sanitizeText(input, maxLength) {
 	return normalized.slice(0, maxLength);
 }
 
+// Route param validator for review ids. Rejecting malformed ids early prevents
+// unnecessary DB round-trips and keeps error responses consistent.
 function parseReviewId(value) {
 	const reviewId = String(value || '').trim();
 	if (!/^[0-9a-f-]{36}$/i.test(reviewId)) return null;
 	return reviewId;
 }
 
+// Loads metadata from root/backend package.json files for diagnostics output.
+// Failures are intentionally swallowed and replaced with safe defaults.
 function parseRepoMeta() {
 	try {
 		const root = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -118,6 +130,8 @@ function parseRepoMeta() {
 
 const repoMeta = parseRepoMeta();
 
+// Resolves logged-in user id from the session cookie by delegating token validation
+// to DB logic (`app.verify_session`), which enforces expiry/revocation checks.
 async function getUserIdFromRequest(req) {
 	const token = req.cookies?.session_token;
 	if (!token) return null;
@@ -127,6 +141,8 @@ async function getUserIdFromRequest(req) {
 	return userId;
 }
 
+// Authentication guard for protected routes. Stores `req.userId` for handlers so
+// they don't need to repeat cookie/session verification logic.
 async function requireAuth(req, res, next) {
 	try {
 		const userId = await getUserIdFromRequest(req);
@@ -138,6 +154,8 @@ async function requireAuth(req, res, next) {
 	}
 }
 
+// Session-introspection endpoint for frontend bootstrapping. Returns either
+// `{ authenticated: false }` or minimal user identity for logged-in state.
 app.get('/api/me', async (req, res, next) => {
 	try {
 		const userId = await getUserIdFromRequest(req);
@@ -152,6 +170,8 @@ app.get('/api/me', async (req, res, next) => {
 	}
 });
 
+// Registration endpoint: sanitizes payload, then calls DB signup function that
+// enforces password rules and hashing. Unique-email conflict maps to HTTP 409.
 app.post('/api/auth/register', async (req, res, next) => {
 	try {
 		const email = sanitizeText(req.body?.email, 320).toLowerCase();
@@ -169,6 +189,8 @@ app.post('/api/auth/register', async (req, res, next) => {
 	}
 });
 
+// Login endpoint: validates credentials via DB function, then sets session cookie
+// with strict same-site and httpOnly settings to reduce script-access risk.
 app.post('/api/auth/login', async (req, res, next) => {
 	try {
 		const email = sanitizeText(req.body?.email, 320).toLowerCase();
@@ -191,6 +213,8 @@ app.post('/api/auth/login', async (req, res, next) => {
 	}
 });
 
+// Logout endpoint: revokes session token server-side (if present) and clears cookie
+// client-side so both server/session state and browser state are invalidated.
 app.post('/api/auth/logout', async (req, res, next) => {
 	try {
 		const token = req.cookies?.session_token;
@@ -211,6 +235,8 @@ app.post('/api/auth/logout', async (req, res, next) => {
 	}
 });
 
+// Runtime metadata endpoint useful for diagnostics pages and setup verification;
+// it exposes package script names and high-level stack description.
 app.get('/api/meta/repo', (req, res) => {
 	return res.json({
 		repo: repoMeta,
@@ -223,6 +249,8 @@ app.get('/api/meta/repo', (req, res) => {
 	});
 });
 
+// Main game lookup endpoint. It normalizes/creates the game row, logs search context
+// (user/ip/ua), returns review feed, and includes caller-specific `myReview` when logged in.
 app.post('/api/games/resolve', async (req, res, next) => {
 	try {
 		const { name } = req.body || {};
@@ -272,6 +300,8 @@ app.post('/api/games/resolve', async (req, res, next) => {
 	}
 });
 
+// Thread endpoint for discussion pages. Looks up game by name, fetches reviews,
+// then hydrates each review with associated comments for a nested thread payload.
 app.get('/api/games/thread', async (req, res, next) => {
 	try {
 		const gameName = sanitizeText(req.query?.name, 120);
@@ -306,6 +336,8 @@ app.get('/api/games/thread', async (req, res, next) => {
 	}
 });
 
+// Review write endpoint. Enforces auth and input constraints, then uses DB upsert
+// so each user has at most one review per game while still supporting edits.
 app.post('/api/reviews', requireAuth, async (req, res, next) => {
 	try {
 		const game_id = String(req.body?.game_id || '').trim();
@@ -331,6 +363,8 @@ app.post('/api/reviews', requireAuth, async (req, res, next) => {
 	}
 });
 
+// Comment write endpoint. Validates route/body values, checks parent review exists,
+// then inserts comment as current user via DB function.
 app.post('/api/reviews/:reviewId/comments', requireAuth, async (req, res, next) => {
 	try {
 		const reviewId = parseReviewId(req.params.reviewId);
@@ -354,6 +388,8 @@ app.post('/api/reviews/:reviewId/comments', requireAuth, async (req, res, next) 
 	}
 });
 
+// Crawler endpoint. Fetches YouTube review-oriented results from SerpAPI and then
+// attempts to persist search/results for analytics, without failing user response on DB write errors.
 app.get('/api/crawler/youtube', async (req, res, next) => {
 	try {
 		const q = String(req.query.q || '').trim();
@@ -402,6 +438,8 @@ app.get('/api/crawler/youtube', async (req, res, next) => {
 	}
 });
 
+// Final error middleware. Converts known DB failures into stable API payloads,
+// maps SQL `RAISE EXCEPTION` app errors to 400, and falls back to generic 500.
 app.use((err, req, res, next) => {
 	const message = typeof err?.message === 'string' ? err.message : 'server_error';
 	const code = err?.code;
@@ -416,6 +454,8 @@ app.use((err, req, res, next) => {
 	return res.status(500).json({ error: 'server_error' });
 });
 
+// Boot HTTP server and print actual bound port. This supports test scripts that
+// launch with `PORT=0` (ephemeral port) and parse stdout for the final address.
 const server = app.listen(PORT, () => {
 	const address = server.address();
 	const boundPort = typeof address === 'object' && address ? address.port : PORT;
@@ -423,6 +463,8 @@ const server = app.listen(PORT, () => {
 	console.log(`Backend running on http://localhost:${boundPort}`);
 });
 
+// Startup guard for common local failure mode: configured port already occupied.
+// Emits actionable guidance and exits non-zero instead of hanging silently.
 server.on('error', (err) => {
 	if (err && err.code === 'EADDRINUSE') {
 		// eslint-disable-next-line no-console

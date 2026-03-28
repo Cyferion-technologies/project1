@@ -1,5 +1,7 @@
 const { getJson } = require("serpapi");
 
+// Minimal SerpAPI example for the single-video detail engine.
+// Fetches metadata for one video id and prints the full response object.
 getJson({
   engine: "youtube_video",
   v: "vFcS080VYQ0",

@@ -6,6 +6,8 @@ const { readEnvValue } = require('./db');
 const SERPAPI_DIR = path.join(__dirname, '..', '..', 'serpAPI');
 const KEYS_FILE = path.join(SERPAPI_DIR, 'keys.json');
 
+// Defensive existence check for optional config/example files.
+// Wrapping fs access avoids hard crashes if paths are missing or inaccessible.
 function fileExists(filePath) {
 	try {
 		return fs.existsSync(filePath);
@@ -14,6 +16,8 @@ function fileExists(filePath) {
 	}
 }
 
+// Reads and parses JSON config files, returning null for missing files or
+// malformed JSON so upstream logic can continue with other key sources.
 function parseJsonFile(filePath) {
 	if (!fileExists(filePath)) return null;
 	try {
@@ -24,12 +28,16 @@ function parseJsonFile(filePath) {
 	}
 }
 
+// Trims and de-quotes potential key values, then applies a minimal length gate
+// to filter obvious invalid/placeholder strings before network calls.
 function sanitizeKey(value) {
 	const key = String(value || '').trim().replace(/^['"]|['"]$/g, '');
 	if (key.length < 32) return '';
 	return key;
 }
 
+// Pulls `api_key: "..."` values from legacy sample scripts. This is a fallback
+// path to keep older local setups functional during migration to env/key files.
 function extractKeysFromJavaScript(filePath) {
 	if (!fileExists(filePath)) return [];
 	const content = fs.readFileSync(filePath, 'utf8');
@@ -47,6 +55,8 @@ function unique(values) {
 	return Array.from(new Set(values.filter(Boolean)));
 }
 
+// Aggregates candidate API keys from all supported sources and de-duplicates.
+// Priority is env vars first, then `serpAPI/keys.json`, then legacy JS samples.
 function discoverSerpApiKeys() {
 	const discovered = [];
 
@@ -73,6 +83,8 @@ function discoverSerpApiKeys() {
 	return unique(discovered);
 }
 
+// Normalizes requested intent into a controlled set of values so query behavior
+// is predictable and unknown categories safely fall back to `reviews`.
 function normalizeIntent(intent) {
 	const value = String(intent || '').trim().toLowerCase();
 	if (!value) return 'reviews';
@@ -80,6 +92,8 @@ function normalizeIntent(intent) {
 	return 'reviews';
 }
 
+// Builds an intent-aware search phrase by appending intent-specific terms,
+// which nudges YouTube results toward review/discussion content.
 function buildSearchQuery(rawQuery, rawIntent) {
 	const query = String(rawQuery || '').trim();
 	const intent = normalizeIntent(rawIntent);
@@ -98,6 +112,8 @@ function buildSearchQuery(rawQuery, rawIntent) {
 	return { query: full, intent };
 }
 
+// Maps raw YouTube search result objects into the backend contract consumed by
+// frontend + DB persistence layers, while preserving nullable field semantics.
 function mapSearchVideo(video) {
 	return {
 		title: video?.title || null,
@@ -115,6 +131,8 @@ function mapSearchVideo(video) {
 	};
 }
 
+// Maps optional enriched detail from `youtube_video` calls for a subset of
+// results (likes, comment counts, channel metadata, expanded description).
 function mapVideoDetail(detail) {
 	return {
 		likes: detail?.likes || null,
@@ -129,6 +147,8 @@ function mapVideoDetail(detail) {
 	};
 }
 
+// Thin wrapper around SerpAPI client so retry/key-rotation logic can centralize
+// request construction and keep call sites concise.
 async function fetchWithKey(params, apiKey) {
 	return getJson({
 		...params,
@@ -136,6 +156,9 @@ async function fetchWithKey(params, apiKey) {
 	});
 }
 
+// Main crawler pipeline: discover keys, build query, call YouTube search,
+// optionally enrich top N results, rotate away invalid keys, and return
+// structured success/error payloads for API route handling.
 async function fetchYoutubeVideos(rawQuery, rawIntent, limit = 8) {
 	const keys = discoverSerpApiKeys();
 	if (!keys.length) {

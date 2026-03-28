@@ -1,5 +1,7 @@
 const { getJson } = require("serpapi");
 
+// Minimal SerpAPI example for the YouTube search engine.
+// Executes a keyword search and prints raw `video_results` array from the response.
 getJson({
   engine: "youtube",
   search_query: "star wars",
