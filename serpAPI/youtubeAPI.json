@@ -1,0 +1,139 @@
+{
+  ...
+  "title": "String - Title of the video",
+  "thumbnail": "String - URL of the video thumbnail",
+  "channel": {
+    "name": "String - Name of the channel",
+    "thumbnail": "String - URL of the channel thumbnail",
+    "link": "String - URL of the channel",
+    "subscribers": "String - Number of subscribers",
+    "verified": "Boolean - True if the channel is verified",
+  },
+  "views": "String - Number of views",
+  "extracted_views": "Integer - Extracted number of views",
+  "likes": "String - Number of likes",
+  "extracted_likes": "Integer - Extracted number of likes",
+  "live": "Boolean - True if the video is live",
+  "published_date": "String - Date of publication",
+  "description": {
+    "content": "String - Description of the video in pure text",
+    "links": [
+      {
+        "start_index": "Integer - Start index of the link text in the content",
+        "length": "Integer - Length of the link text",
+        "text": "String - The link text",
+        "url": "String - URL of the link",
+        "type": "String - Type of the link",
+      }
+    ]
+  },
+  "additional_info": [
+    {
+      "title": "String - Title of the info row",
+      "text": "String - Text of the info row",
+      "link": "String - URL associated with the text",
+    },
+    ...
+  ],
+  "shopping_results": [
+    {
+      "title": "String - Title of the product",
+      "description": "String - Description of the product",
+      "thumbnail": "String - URL of the product thumbnail",
+      "price": "String - Price of the product",
+      "extracted_price": "Float - Extracted price of the product",
+      "vendor": "String - Vendor of the product",
+      "link": "String - URL of the product",
+    }
+  ],
+  "chapters": [
+    {
+      "title": "String - Title of the chapter",
+      "thumbnail": "String - URL of the chapter thumbnail",
+      "time_start": "Integer - Time start of the chapter in seconds",
+    }
+  ],
+  "related_videos": [
+    {
+      "video_id": "String - ID of the video",
+      "playlist_id": "String - ID of the playlist if the result is a playlist",
+      "link": "String - URL of the video",
+      "serpapi_link": "String - URL to the SerpApi search",
+      "thumbnail": {
+        "static": "String - URL of the static video thumbnail",
+        "rich": "String - URL of the rich video thumbnail, usually in the form of a video containing the multiple screenshots",
+      },
+      "title": "String - Title of the video",
+      "published_date": "String - Date of publication",
+      "views": "String - Number of views",
+      "extracted_views": "Integer - Extracted number of views",
+      "live": "Boolean - True if the video is live",
+      "length": "String - Length of the video",
+      "channel": {
+        "name": "String - Name of the channel",
+        "link": "String - URL of the channel",
+        "thumbnail": "String - URL of the channel thumbnail",
+        "verified": "Boolean - True if the channel is verified",
+        "official_artist": "Boolean - True if the channel is an official artist channel",
+      },
+      "extensions": "Array - List of video badges"
+    }
+  ],
+  "related_videos_next_page_token": "String - Token to get the next page of related videos",
+  "end_screen_videos": [
+    {
+      "video_id": "String - ID of the video",
+      "link": "String - URL of the video",
+      "serpapi_link": "String - URL to the SerpApi search",
+      "thumbnail": "String - URL of the video thumbnail",
+      "title": "String - Title of the video",
+      "published_date": "String - Date of publication",
+      "views": "String - Number of views",
+      "extracted_views": "Integer - Extracted number of views",
+      "live": "Boolean - True if the video is live",
+      "length": "String - Length of the video",
+      "channel": {
+        "name": "String - Name of the channel",
+        "link": "String - URL of the channel",
+      }
+    }
+  ],
+  // comments do not exist in the initial response, they must be retrieved with the `comments_next_page_token` or `comments_sorting_token`
+  "comments": [
+    {
+      "comment_id": "String - ID of the comment",
+      "link": "String - URL of the comment",
+      "channel": {
+        "name": "String - Name of the channel",
+        "link": "String - URL of the channel",
+        "thumbnail": "String - URL of the channel thumbnail",
+        "verified": "Boolean - True if the channel is verified",
+      },
+      "published_date": "String - Date of publication",
+      "content": "String - Content of the comment",
+      "vote_count": "String - Number of votes",
+      "extracted_vote_count": "Integer - Extracted number of votes",
+      "reply_count": "Integer - Number of replies",
+      "replies_next_page_token": "String - Token to get the next page of replies",
+    }
+  ],
+  "comment_count": "String - Number of comments",
+  "extracted_comment_count": "Integer - Extracted number of comments",
+  "comments_next_page_token": "String - Token to get the next page of comments",
+  "comments_sorting_token": [
+    {
+      "title": "String - Title of the sorting option",
+      "token": "String - Token to sort the comments",
+    }
+  ],
+  "comment_parent_id": "String - The parent comment ID of the replies",
+  // replies do not exist in the initial response, they must be retrieved with the `replies_next_page_token`
+  "replies": [
+    // the same structure as comments
+  ],
+  "replies_next_page_token": "String - Token to get the next page of replies",
+  "transcript": {
+    "serpapi_link": "String - URL to the SerpApi Youtube Video Transcript API",
+  },
+  ...
+}

@@ -6,6 +6,8 @@ const {
 	createPool,
 } = require('../lib/db');
 
+// DB bootstrap entrypoint. Applies schema SQL files in deterministic order,
+// then verifies required objects exist so partial/failed init is detected early.
 async function run() {
 	const pool = createPool();
 	const sqlFiles = [

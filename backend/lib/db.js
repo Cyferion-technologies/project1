@@ -2,6 +2,8 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { Pool } = require('pg');
 
+// Canonical schema contract for this backend. Health checks and init scripts use
+// this list to verify tables/functions expected by API routes are actually present.
 const REQUIRED_SCHEMA_OBJECTS = [
 	{
 		kind: 'schema',
@@ -27,6 +29,21 @@ const REQUIRED_SCHEMA_OBJECTS = [
 		kind: 'table',
 		name: 'app.reviews',
 		sql: "SELECT to_regclass('app.reviews') IS NOT NULL AS present",
+	},
+	{
+		kind: 'table',
+		name: 'app.review_comments',
+		sql: "SELECT to_regclass('app.review_comments') IS NOT NULL AS present",
+	},
+	{
+		kind: 'table',
+		name: 'app.game_searches',
+		sql: "SELECT to_regclass('app.game_searches') IS NOT NULL AS present",
+	},
+	{
+		kind: 'table',
+		name: 'app.video_search_results',
+		sql: "SELECT to_regclass('app.video_search_results') IS NOT NULL AS present",
 	},
 	{
 		kind: 'function',
@@ -58,14 +75,43 @@ const REQUIRED_SCHEMA_OBJECTS = [
 		name: 'app.list_reviews',
 		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'list_reviews') AS present",
 	},
+	{
+		kind: 'function',
+		name: 'app.add_review_comment',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'add_review_comment') AS present",
+	},
+	{
+		kind: 'function',
+		name: 'app.list_review_comments',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'list_review_comments') AS present",
+	},
+	{
+		kind: 'function',
+		name: 'app.log_game_search',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'log_game_search') AS present",
+	},
+	{
+		kind: 'function',
+		name: 'app.store_video_results',
+		sql: "SELECT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND p.proname = 'store_video_results') AS present",
+	},
 ];
 
+function readIntEnv(name, fallback) {
+	const value = Number(readEnvValue(name, String(fallback)));
+	return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+// Reads environment variables from process/.env and strips wrapping quotes that
+// are common when values are copied from dashboard UIs into env files.
 function readEnvValue(name, fallback = '') {
 	return String(process.env[name] ?? fallback)
 		.trim()
 		.replace(/^['"]|['"]$/g, '');
 }
 
+// Parses DATABASE_URL into a URL object for provider/host detection.
+// Returns null when not configured, and `{ value, url: null }` when malformed.
 function parseDatabaseUrl() {
 	const value = readEnvValue('DATABASE_URL');
 	if (!value) return null;
@@ -77,6 +123,7 @@ function parseDatabaseUrl() {
 	}
 }
 
+// Heuristic provider classifier used for diagnostics messaging (not auth logic).
 function detectProvider(hostname) {
 	const host = String(hostname || '').toLowerCase();
 	if (!host) return 'local_postgres';
@@ -84,6 +131,8 @@ function detectProvider(hostname) {
 	return 'postgres';
 }
 
+// Resolves SSL mode for pg Pool config. Defaults to SSL for Supabase hosts,
+// respects explicit PGSSLMODE overrides, and supports local non-SSL setups.
 function resolveSslConfig() {
 	const sslMode = readEnvValue('PGSSLMODE').toLowerCase();
 	if (sslMode === 'disable') return false;
@@ -97,6 +146,8 @@ function resolveSslConfig() {
 	return false;
 }
 
+// Builds a normalized runtime view of the active DB target (host, provider,
+// pooled/non-pooled port, ssl mode) for logging and health response metadata.
 function getDatabaseTarget() {
 	const parsed = parseDatabaseUrl();
 	if (parsed) {
@@ -133,6 +184,8 @@ function getDatabaseTarget() {
 	};
 }
 
+// Public-safe DB summary for API responses. Intentionally excludes credentials,
+// keeping only configuration context useful for support/debugging.
 function getPublicDatabaseSummary(target = getDatabaseTarget()) {
 	return {
 		provider: target.provider,
@@ -143,13 +196,21 @@ function getPublicDatabaseSummary(target = getDatabaseTarget()) {
 	};
 }
 
+// Creates the pg Pool with sane defaults and timeout controls.
+// Priority is `DATABASE_URL`, with PGHOST/PGPORT/PGUSER fallback for local dev.
 function createPool() {
 	const ssl = resolveSslConfig();
 	const connectionString = readEnvValue('DATABASE_URL');
+	const commonPoolConfig = {
+		ssl,
+		max: readIntEnv('PGPOOL_MAX', 10),
+		idleTimeoutMillis: readIntEnv('PG_IDLE_TIMEOUT_MS', 30000),
+		connectionTimeoutMillis: readIntEnv('PG_CONNECT_TIMEOUT_MS', 5000),
+	};
 	if (connectionString) {
 		return new Pool({
 			connectionString,
-			ssl,
+			...commonPoolConfig,
 		});
 	}
 
@@ -159,10 +220,12 @@ function createPool() {
 		user: readEnvValue('PGUSER', 'postgres') || 'postgres',
 		password: readEnvValue('PGPASSWORD', ''),
 		database: readEnvValue('PGDATABASE', 'postgres') || 'postgres',
-		ssl,
+		...commonPoolConfig,
 	});
 }
 
+// Classifies raw driver/network/Postgres errors into actionable categories so
+// callers can return stable user-facing error payloads and support guidance.
 function classifyDatabaseError(err) {
 	if (!err) return null;
 
@@ -236,6 +299,8 @@ function classifyDatabaseError(err) {
 	return null;
 }
 
+// Converts classification output to consistent HTTP response structure expected
+// by API endpoints (`error`, `reason`, `detail`, plus non-sensitive DB summary).
 function toDatabaseHttpResponse(err, options = {}) {
 	const diagnosis = classifyDatabaseError(err);
 	if (!diagnosis) return null;
@@ -257,6 +322,8 @@ function toDatabaseHttpResponse(err, options = {}) {
 	};
 }
 
+// Executes schema probes sequentially and returns a compact list of missing
+// objects to drive health readiness errors and post-init diagnostics.
 async function checkRequiredSchema(pool) {
 	const missing = [];
 
