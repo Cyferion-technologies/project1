@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Review Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1 class="brand">Game Review Portal</h1>
+        <div class="top-right-buttons">
+            <button id="create-account-btn">Create Account</button>
+            <button id="login-btn">Login</button>
+        </div>
+    </header>
+    <main>
+        <section class="hero-card">
+            <h2>Find What Players Really Think</h2>
+            <p>Search any title and browse real community reviews in seconds.</p>
+            <div class="search-container">
+                <input type="text" id="search-bar" placeholder="Search for games...">
+                <button id="search-btn">Search</button>
+            </div>
+        </section>
+        <div class="results-wrapper">
+            <div id="search-results"></div>
+        </div>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "node back-end/server.js"
+  },
   "dependencies": {
     "express": "^5.2.1"
   }

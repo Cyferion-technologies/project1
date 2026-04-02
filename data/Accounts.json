@@ -78,5 +78,10 @@
         "username": "ben",
         "email": "ben@project.com",
         "password": "ben"
+    },
+    {
+        "username": "test222",
+        "email": "test222@outlook.com",
+        "password": "testpass"
     }
 ]
